@@ -1,12 +1,11 @@
-# Cat_locomotion(Rybac)
-В этой ветке производится воспроизведение резульатов статьи Рыбака
-для копирования ветки\
+# SpikingNN
+Project created simulations of spiking neural networks with colaborate of muscules, limbs, joints to control locomotion of biomorphic robots/
+The name is on develop
 
 ## Reveiw
-main.py -  файл с функцией запуска симуляции
-в Models лежат модели, использвуемые в симуляции
+There will be the review of the project
 
 ## Как поднять репозиторий у себя на ПК
 ```bash
-git clone -b Rybak_dev https://github.com/brodayagabro/Cat_locomotion
+git clone -b Rybak_dev https://github.com/brodayagabro/SpikingNN
 ```
