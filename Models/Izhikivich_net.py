@@ -20,6 +20,7 @@ b = np.array([0.2, 0.2]);
 c = np.array([-65, -65]);
 d = np.array([8, 8]);
 tau = [10, 5]
+
 def solve(T, I, V_peak):
     count_of_neurons = 2
     neuron_indexes = np.arange(count_of_neurons)

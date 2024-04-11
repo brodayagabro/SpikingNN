@@ -38,9 +38,9 @@ class Izhikevich_Network(Network):
         dV = 0.04*np.power(V, 2) + 5*V + 140 - U + I + Isyn;
         dU = a(b*V-u)
         
-help(Synapses)
-help(Network)
-help(Izhikevich_Network)
+#help(Synapses)
+#help(Network)
+#help(Izhikevich_Network)
 
         
 
