@@ -89,7 +89,7 @@ class Izhikevich_Network:
             V[n] =  np.where(V[n] >= self.V_peak, self.V_peak+1, V[n])
             U[n+1] = np.where(V[n] >= self.V_peak, U[n]+self.d, U[n] + dt*dUdt)
             dI_syn = dt*(-I_syn*self._tau_syn + self._W * (np.where(V[n]>=self.V_peak, V[n] , 0)))
-            I_syn = I_syn + dI_syn
+            I_syn +=dI_syn
         return {
             'v': V,
             'u': U
@@ -103,7 +103,7 @@ class Izhikevich_Network:
 from matplotlib import pyplot as plt
 
 if __name__=="__main__":
-    T = np.linspace(0, 200, 1000)
+    T = np.linspace(0, 500, 1000)
     net = Izhikevich_Network(N=10)
     net.input = lambda t: 10*np.random.rand(10)
     V0 = net.c
@@ -113,6 +113,7 @@ if __name__=="__main__":
     plt.subplot(121)
     plt.plot(firings[0], firings[1], "k.")
     plt.subplot(122)
-    plt.plot(T, sol['v'][:, 0])
+    for i in range(10):
+        plt.plot(T, sol['v'][:, 0])
     plt.show()
 

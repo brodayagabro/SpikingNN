@@ -34,10 +34,12 @@ def draw_sym(Monitor, title):
     #fig, axs = subplots(m, n, figsize=(10, l))
     #fig.suptitle(title, fontsize=15)
     for j in range(l):
-        plt.plot(Monitor.t/ms, Monitor.v[j], label="v")
-        plt.plot(Monitor.t/ms, Monitor.u[j], label="u")
-        plt.plot(Monitor.t/ms, Monitor.I[j], "k-", label = "I")
-        plt.xlabel(f"t, ms")
+        plt.figure(figsize=(12, 6))
+        plt.plot(Monitor.t/second, Monitor.v[j], label="v")
+        plt.plot(Monitor.t/second, Monitor.u[j], label="u")
+        plt.plot(Monitor.t/second, Monitor.I[j], "k-", label = "I")
+        plt.plot(Monitor.t/second, Monitor.Isyn[j], "r-", label = "I_syn")
+        plt.xlabel(f"t, s")
         plt.ylabel(f'neuron_{j+1}')
         if ((j+1)%6 == 0):
             plt.title("Motoneuron")
