@@ -47,7 +47,8 @@ class neuron_group(element):
     def size(self):
         return self._size
 
-    def dynamics(self):
+    def step(self):
+
         """
             Will be realized in child classes
         """
@@ -79,10 +80,10 @@ class neuron_group(element):
             Will be realized in child classes
         """
         pass
+       
+      
         
-        
-        
- class izhikevich_neuron(element):
+class izhikevich_neuron(element):
     
     """
     Izhikevich neuron class 
@@ -149,6 +150,11 @@ class neuron_group(element):
     @property
     def d(self):
         return self._d
+
+
+class LIF_neuron(neuron_group):
+    def __init__(self):
+        neuron_group.__init__()
 
 
 class izhikevich_neuron_group(neuron_group):
@@ -239,7 +245,7 @@ class izhikevich_neuron_group(neuron_group):
         return np.where(self._v_>=self.__ap_threshold__,
                 self.__ap_threshold__, 0)
     
-    def dynamics(self):
+    def step(self):
         dVdt = self.time_scale*(0.04*np.power(self._v_, 2) +
                 5*self._v_ + 140 - self._u_ +
                 self.__input__ + self.Iapp
@@ -291,7 +297,7 @@ if __name__=="__main__":
     for i in range(len(T)):
         V[i] = ing1.get_v()
         ing1.input(10*np.random.rand(4)) 
-        ing1.dynamics();
+        ing1.step();
     print(V[:5])
     plt.plot(T, V[:, 0])
     plt.plot(T, V[:, 1])

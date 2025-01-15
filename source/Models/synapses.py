@@ -1,6 +1,5 @@
 import numpy as np
 from neuron_group import *
-from neuron_group import *
 
 class synapses(element):
     """
@@ -61,7 +60,7 @@ class synapses(element):
         N = self._source_size;
         M = self._target_size;
         if np.shape(new_weights) == (N, M):
-            self._weights = np.copy(new_weights)
+            self._weights = np.where(self.mask == 1, new_weights, 0)
         else:
             raise Exception(f"Excepted matrix shape ({N}, {M})")
 
@@ -83,7 +82,7 @@ class synapses(element):
         else:
             raise Exception("Loaded file contents matrix with uncorrect shape...")
 
-    def dynamics(self):
+    def step(self):
         """
         will be realized in child classes
         dinamics related to neuron_model and synapses model
@@ -128,7 +127,7 @@ class Simple_synapse(synapses):
         M = self._target_size;
         self._tau_syn = np.ones((N, M))
     
-    def dynamics(self):
+    def step(self):
         """
         Calculate dynamics of synaptic current
         """
@@ -181,7 +180,7 @@ if __name__=="__main__":
     for id in ids:
         neurons_target[id] = izhikevich_neuron(preset='RS')
 
-    T = np.arange(0, 300, dt)
+    T = np.arange(0, 800, dt)
     source = izhikevich_neuron_group(size=N, neurons=neurons_source,
             time_scale = time_scale, dt=dt);
     source.update_coefs();
@@ -194,16 +193,16 @@ if __name__=="__main__":
     target.check_ready_to_run()
     #print(len(target))
 
-    syn = Simple_synapse(source, target, dt=dt, time_scale=time_scale);
+    syn = Simple_synapse(source, source, dt=dt, time_scale=time_scale);
     #print(syn.weights);
-    tau = 0.1*np.ones((N, M))
-    W = np.random.rand(N, M)*10
+    tau = 0.1*np.ones((N, N))
+    W = np.random.rand(N, N)*10
     syn.set_weigths(W)
     syn.set_synaptic_relax_constant(tau)
     
     V_source = np.zeros((len(T), N))
-    V_target = np.zeros((len(T), M))
-    I_syn = np.zeros((len(T), N, M))
+    V_target = np.zeros((len(T), N))
+    I_syn = np.zeros((len(T), N, N))
     for i in range(len(T)):
       V_source[i] = source.get_v()
       V_target[i] = target.get_v()
@@ -211,7 +210,7 @@ if __name__=="__main__":
       syn.propogate()
       source.dynamics()
       target.dynamics()
-      syn.dynamics()
+      syn.step()
     plt.figure()
     plt.subplot(221)
     plt.title("presyn")
