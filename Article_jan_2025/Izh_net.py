@@ -205,7 +205,7 @@ class Izhikevich_Network(NameNetwork):
         self.U_prev = self.U
         self.V_prev = self.V
 
-    def set_params(self, **kwags):
+    def set_params(self, **kwargs):
         """
         Method to change Izhikevich params
         keyword arguments:
@@ -215,6 +215,7 @@ class Izhikevich_Network(NameNetwork):
         b = kwargs.get('b', self.b)
         c = kwargs.get('c', self.c)
         d = kwargs.get('d', self.d)
+        N = self.N
         
         if len(a) == N:
             self.a = a
@@ -296,7 +297,7 @@ neuromechanical model' by Markin S. et. all.
                         1/(1+np.exp(-(self.V_prev-self.V1_2)/self.k)),
                         0)
 
-    def step(self, dt=0.1, Iapp=0, I_aff = 0):
+    def step(self, dt=0.1, Iapp=0, Iaff = 0):
         dVdt = self.V_prev*(self.a-self.V)*(self.V-1)-self.U_prev
         dUdt = self.b*self.V_prev - self.c*self.U_prev
         self.V += dt*(dVdt + Iapp + np.sum(self.I_syn, axis=1))*self.ts
@@ -325,7 +326,7 @@ def run_net(T, net, I_app, I_aff):
     for i, t in enumerate(T):
         U[i] = net.U_prev
         V[i] = net.V_prev
-        net.step(dt=dt, I_app = I_app(t), I_aff = I_aff(t))
+        net.step(dt=dt, Iapp = I_app(t))
     return U, V
 
 class Izhikevich_IO_Network(Izhikevich_Network):
