@@ -1,6 +1,7 @@
 import numpy as np
-
 from matplotlib import pyplot as plt
+
+
 
 class izhikevich_neuron:
     
@@ -50,6 +51,8 @@ class izhikevich_neuron:
         assert preset in preset_list,f'Preset {preset} does not exist! Use one from {preset_list}'
         self.params = param_list[idx]
 
+
+
 def types2params(types):
     """
     types - list with types of neoruns from 
@@ -70,6 +73,8 @@ def types2params(types):
         Params[i] = neuron.params
         del neuron
     return Params[:, 0], Params[:, 1], Params[:, 2], Params[:, 3]
+
+
 
 class Network:
     """
@@ -141,6 +146,8 @@ class Network:
         else:
             raise Exception(f"Excepted relax_constant matrix with shape ({N}, {N}), but shape {np.shape(relax_constant)} was sent...")
 
+
+
 class NameNetwork(Network):
     """
     Класс: Именованая Сеть
@@ -178,6 +185,8 @@ class NameNetwork(Network):
             for j in range(self.N):
                 if self.M[j, i] != 0:
                     print(f"{self.names[i]} -> {self.names[j]} type: {self.M[j, i]}")
+
+
 
 # Необходимо дописать класс для определения параметров входа и параметров выхода...
 class Izhikevich_Network(NameNetwork):
@@ -260,6 +269,8 @@ class Izhikevich_Network(NameNetwork):
         self.U_prev = self.U
         self.output = np.where(self.V >= self.V_peak, self.V_peak, 0)
 
+
+
 class FizhugNagumoNetwork(NameNetwork):
     """
     FizhHug-Nagumo nuron Network
@@ -308,35 +319,19 @@ neuromechanical model' by Markin S. et. all.
         self.I_syn += dI_syn
         self.output = self.syn_input()
 
-def run_net(T, net, I_app, I_aff):
-    """
-    Procedure of running network 
-    args:
-    T - discrete time array
-    net - network object
-    I_app - applied current
-    I_aff - afferents activity
-    retrun U, V - state of network array with shape(len(T), N), 
-    N - size of
-    """
-    dt = T[1] - T[0]
-    N = len(net)
-    U = np.zeros((len(T), N))
-    V = np.zeros((len(T), N))
-    for i, t in enumerate(T):
-        U[i] = net.U_prev
-        V[i] = net.V_prev
-        net.step(dt=dt, Iapp = I_app(t))
-    return U, V
 
-class Izhikevich_IO_Network(Izhikevich_Network):
+
+
+
+
+def IO_Network_decorator(cls):
     """
     Inherit all properties and methods from Izhikevich network
     But It has properties like matrix of input and matrix of output
     """
-    def __init__(self, **kwargs):
+    class IO_Network(cls):
         """
-        Has arguments from Izhikevich_Network cunstructor
+        Has arguments from cls cunstructor
         input_size - dimension of input
         N - dimension of state
         output_size - dimension of output
@@ -344,36 +339,53 @@ class Izhikevich_IO_Network(Izhikevich_Network):
         Q_aff - matrix(input_size, N) of afferent current
         P - matrix(N, output_size) of output
         """
-        super().__init__(**kwargs);
-        self.input_size = kwargs.get('input_size', self.N)
-        self.afferent_size = kwargs.get('afferent_size', self.N)
-        self.output_size = kwargs.get('output_size', self.N)
+        def __init__(self, *args, **kwargs):
+            super().__init__(*args, **kwargs)
+
+            self.input_size = kwargs.get('input_size', self.N)
+            self.afferent_size = kwargs.get('afferent_size', self.N)
+            self.output_size = kwargs.get('output_size', self.N)
         
-        self.Q_app = kwargs.get('Q_app', np.ones((self.input_size, self.N)))
-        if np.shape(self.Q_app) != (self.N, self.input_size):
-            raise Exception (f"Applicatian matrix Q_app must have wrong shape ({self.N}, {self.input_size})")
+            self.Q_app = kwargs.get('Q_app',
+                                    np.ones((self.N, self.input_size)))
+            if np.shape(self.Q_app) != (self.N, self.input_size):
+                raise Exception (f"Applicatian matrix Q_app must have wrong shape ({self.N}, {self.input_size})")
         
-        self.Q_aff = kwargs.get('Q_aff', np.ones((self.afferent_size, self.N)))
-        if np.shape(self.Q_aff) != (self.N, self.input_size):
-            raise Exception (f"Applicatian matrix Q_aff must have wrong shape ({self.N}, {self.input_size})")
+            self.Q_aff = kwargs.get('Q_aff', 
+                                    np.ones((self.N, self.afferent_size)))
+            if np.shape(self.Q_aff) != (self.N, self.afferent_size):
+                raise Exception (f"Applicatian matrix Q_aff must have shape ({self.N}, {self.afferent_size})")
         
-        self.P = kwargs.get('P', np.ones((self.N, self.output_size)))
-        if np.shape(self.P) != (self.output_size, self.N):
-            raise Exception (f"Output matrix P must have wrong shape ({self.output_size}, {self.N})")
-    
-    def step(self, dt = 0.1, I_app = 0, I_aff = 0):
-        I_in = self.Q_app.dot(I_app) + self.Q_aff.dot(I_aff)
-        super().step(dt=0.1, Iapp=I_in)
-        self.V_out = self.P.dot(self.output)
+            self.P = kwargs.get('P', 
+                                np.ones((self.output_size, self.N)))
+            print(self.P.shape)
+            if np.shape(self.P) != (self.output_size, self.N):
+                raise Exception (f"Output matrix P must have wrong shape ({self.output_size}, {self.N})")
         
+        def step(self, dt = 0.1, Iapp = 0, Iaff = 0):
+            #print(f'Iapp={Iapp}')
+            #print(self.Q_app.dot(Iapp).shape)
+            #print(self.Q_aff.dot(Iaff).shape)
+            I_in = self.Q_app.dot(Iapp) + self.Q_aff.dot(Iaff)
+            super().step(dt=0.1, Iapp=I_in)
+            self.V_out = self.P.dot(self.output)
+        
+        def __str__(self):
+            return f"Wrapped {cls.__name__}"
+
+    return IO_Network
 
 
-def create_firing_rastr(V, T, V_peak):
+
+@IO_Network_decorator
+class Izhikevich_IO_Network(Izhikevich_Network):
     """
-Create Spikes from time dependency for all neurons
+    Decorated Izhikevich Network
+    With Input and Output matrixes
     """
-    firing_idx = np.where(V>V_peak)
-    return (T[firing_idx[0]], firing_idx[1])
+    pass
+
+        
 
 class SimpleAdaptedMuscle:
     """
@@ -409,6 +421,8 @@ class SimpleAdaptedMuscle:
         self.F = self.F_prev + dt*(self.A*self.x - self.F_prev*self.tau_1)
         self.F_prev = self.F
         self.Cn_prev = self.Cn
+
+
 
 class Afferents:
     """
@@ -472,6 +486,7 @@ neuromechanical model' by Markin S. et. all.
         return self.k_dII*d_norm + self.k_nII*input + self.const_II
 
 
+
 class Pendulum:
     """
     Pendulum class in gravity feild with angular friction
@@ -505,6 +520,8 @@ class Pendulum:
         self.q = self.q_prev + 0.001*dt*(self.w_prev)
         self.q_prev = self.q
         self.w_prev = self.w
+
+
 
 class OneDOFLimb(Pendulum):
     """
@@ -549,6 +566,7 @@ class OneDOFLimb(Pendulum):
         h_ext = self.h(L_ext, np.pi-self.q)
         self.M_tot = F_flex*h_flex - F_ext*h_ext + M
         super().step(dt=dt, M=self.M_tot)
+
 
 class OneDOFLimb_withGR(OneDOFLimb):
     """
@@ -623,11 +641,26 @@ class Afferented_Limb:
         self.calc_afferents()
 
 
+class Net_Limb_connect:
+    
+    def __init__(self,
+                 Network = Izhikevich_IO_Network(input_size=2,
+                                                 output_size=2,
+                                                 afferent_size=6,
+                                                 N = 4),
+                 Limb = Afferented_Limb()):
+        self.net = Network
+        self.net.set_init_conditions(
+                np.random.normal(size=self.net.N, scale=0.5)
+                )
+        self.Limb = Limb
 
-
+    def step(self, dt=0.1, Iapp=0):
+        self.net.step(dt=dt, Iapp=Iapp, Iaff=self.Limb.output)
+        self.Limb.step(dt=dt, uf=self.net.V_out[0],
+                       ue=self.net.V_out[1])
 
     
-
 
 
 
