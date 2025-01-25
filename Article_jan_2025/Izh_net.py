@@ -260,6 +260,7 @@ class Izhikevich_Network(NameNetwork):
         self.U = self.c*self.b
         self.U_prev = self.U
         self.V_prev = self.V
+        self.I_syn=np.zeros((self.N, self.N))
 
     def step(self, dt = 0.1, Iapp=0):
         dVdt, dUdt = self.run_state(self.U_prev, self.V_prev, self.I_syn, Iapp)
@@ -310,6 +311,13 @@ neuromechanical model' by Markin S. et. all.
         return np.where(self.V_prev>self.V_th,
                         1/(1+np.exp(-(self.V_prev-self.V1_2)/self.k)),
                         0)
+
+    def set_init_conditions(self):
+        self.V = np.zeros(self.N)
+        self.U = np.zeros(self.N)
+        self.V_prev = np.zeros_like(self.V)
+        self.U_prev = np.zeros_like(self.U)
+        self.I_syn=np.zeros((self.N, self.N))
 
     def step(self, dt=0.1, Iapp=0, Iaff = 0):
         dVdt = self.V_prev*(self.a-self.V)*(self.V-1)-self.U_prev
@@ -425,6 +433,13 @@ class SimpleAdaptedMuscle:
         self.F_prev = 0
         self.x = 0
 
+    def set_init_conditions(self):
+        self.Cn = 0
+        self.Cn_prev = 0
+        self.F = 0
+        self.F_prev = 0
+        self.x = 0
+
     def step(self, dt = 0.1, u=0):
         self.Cn = self.Cn_prev + dt*(self.w*u - self.Cn_prev*self.tau_c)
         self.x = self.Cn**self.m/(self.Cn**self.m + self.k**self.m)
@@ -515,10 +530,17 @@ class Pendulum:
         self.b = b
         self.q = kwargs.get('q0', np.pi/2)
         self.w = kwargs.get('w0', 0)
+        self.q0 = self.q
+        self.w0 = self.w
         self.q_prev = self.q
         self.w_prev = self.w
         self.own_T = 2*np.pi*np.sqrt(2*ls/(3*self.g))
 
+    def set_init_conditions(self):
+        self.q = self.q0
+        self.w = self.w0
+        self.q_prev = self.q
+        self.w_prev = self.w
 
     def step(self, dt = 0.1, M = 0):
         """
@@ -648,6 +670,10 @@ class Afferented_Limb:
         self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
         self.output[5] = self.Afferents.Ib(self.F_ext)
 
+    def set_init_conditions(self):
+        self.Limb.set_init_conditions()
+        self.Flexor.set_init_conditions()
+        self.Extensor.set_init_conditions()
 
     def step(self, dt=0.1, uf=0, ue=0):
         # uf - flexor input, ue - extensor input
@@ -696,6 +722,10 @@ class Net_Limb_connect:
     @property
     def w(self):
         return self.Limb.w
+
+    def set_init_conditions(self):
+        self.net.set_init_conditions()
+        self.Limb.set_init_conditions()
 
     def step(self, dt=0.1, Iapp=0):
         # running network
