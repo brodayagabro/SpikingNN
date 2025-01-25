@@ -246,6 +246,8 @@ class Izhikevich_Network(NameNetwork):
         else:
             raise Exception(f"Excepted d with size {N}, but size {len(d)} was sent...")
 
+        self.set_init_conditions(np.zeros(self.N))
+
 	
     def run_state(self, U, V, I_syn, I_app):
         dVdt = 0.04*np.power(V, 2) + 5*V + 140 - U + I_app + np.sum(I_syn, axis=1);
@@ -303,7 +305,7 @@ neuromechanical model' by Markin S. et. all.
         self.I_syn=np.zeros((self.N, self.N))
         self.output = np.zeros(self.N)
 
-    def syn_input(self):
+    def syn_output(self):
         return np.where(self.V_prev>self.V_th,
                         1/(1+np.exp(-(self.V_prev-self.V1_2)/self.k)),
                         0)
@@ -315,9 +317,9 @@ neuromechanical model' by Markin S. et. all.
         self.U += dUdt*dt*self.ts
         self.V_prev = self.V
         self.U_prev = self.U
-        dI_syn = dt * (-self.I_syn * self.tau_syn + self.W * self.syn_input())
+        dI_syn = dt * (-self.I_syn * self.tau_syn + self.W * self.syn_output())
         self.I_syn += dI_syn
-        self.output = self.syn_input()
+        self.output = self.syn_output()
 
 
 
@@ -328,6 +330,13 @@ def IO_Network_decorator(cls):
     """
     Inherit all properties and methods from Izhikevich network
     But It has properties like matrix of input and matrix of output
+    Has arguments from cls cunstructor
+    input_size - dimension of input
+    N - dimension of state
+    output_size - dimension of output
+    Q_app - matrix(input_size, N) of input current
+    Q_aff - matrix(input_size, N) of afferent current
+    P - matrix(N, output_size) of output
     """
     class IO_Network(cls):
         """
@@ -609,7 +618,15 @@ class Afferented_Limb:
         self.output = np.zeros(6)# Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_f
         self.F_flex = 0
         self.F_ext = 0
-   
+  
+    @property
+    def q(self):
+        return self.Limb.q
+
+    @property
+    def w(self):
+        return self.Limb.w
+
     def calc_afferents(self):
         # Limb_state
         q = self.Limb.q # angle
@@ -654,9 +671,35 @@ class Net_Limb_connect:
                 np.random.normal(size=self.net.N, scale=0.5)
                 )
         self.Limb = Limb
+    
+    @property
+    def V(self):
+        return self.net.V_prev
+
+    @property
+    def U(self):
+        return self.net.U_prev
+
+    @property
+    def F_flex(self):
+        return self.Limb.Flexor.F_prev
+
+    @property
+    def F_ext(self):
+        return self.Limb.Extensor.F_prev
+
+    @property
+    def q(self):
+        return self.Limb.q
+
+    @property
+    def w(self):
+        return self.Limb.w
 
     def step(self, dt=0.1, Iapp=0):
+        # running network
         self.net.step(dt=dt, Iapp=Iapp, Iaff=self.Limb.output)
+        # running limb
         self.Limb.step(dt=dt, uf=self.net.V_out[0],
                        ue=self.net.V_out[1])
 

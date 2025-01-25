@@ -599,25 +599,22 @@ def test_FHN_Network_with_Limb():
 def test_Net_Limb_connect():
     Q_app = np.array([
             [1, 0],
-            [0, 1],
             [0, 0],
+            [0, 1],
             [0, 0]
         ])
     print(Q_app.shape)
-    Q_aff = np.array([
-            [1, 1, 1, 1, 1, 1],
-            [1, 1, 1, 1, 1, 1],
-            [0, 0, 0, 0, 0, 0],
-            [0, 0, 0, 0, 0, 0]
-        ])
+    Q_aff = 1*np.random.rand(4, 6)
     P = np.array([
             [1, 0, 0, 0],
-            [0, 1, 0, 0]
+            [0, 0, 1, 0]
         ])
-    types = ['IB', 'IB', 'RS', 'IB']
+    types = ['CH', 'FS', 'CH', 'FS']
     print(types)
     # Create params' array from neurons
     A, B, C, D = types2params(types)
+    A[0] = 0.001
+    A[2] = 0.001
     print(A, B, C, D)
     net = Izhikevich_IO_Network(input_size = 2, output_size = 2, 
                                 afferent_size = 6,
@@ -627,20 +624,15 @@ def test_Net_Limb_connect():
     # Neuron_weigths
     W = [
             [0, 0, 0, -1.1],
-            [0.7, 0, 0, 0],
+            [1.7, 0, 0, 0],
             [0, -1.1, 0, 0],
-            [0, 0, 0.7, 0]
+            [0, 0, 1.7, 0]
         ]
     
     N=4
     net.M = np.ones((N, N))
     net.set_weights(W)
-    tau_syn = np.array([
-            [1, 1, 1, 20],
-            [1, 1, 10, 1],
-            [1, 20, 1, 1],
-            [10, 1, 1, 1]
-        ])
+    tau_syn = 20*np.ones((N, N))
     net.set_synaptic_relax_constant(tau_syn)
     print(net.tau_syn)
     print(net.W)
@@ -649,7 +641,7 @@ def test_Net_Limb_connect():
     # Limb settings
     flexor = SimpleAdaptedMuscle(w = 0.5, N=2)
     extensor = SimpleAdaptedMuscle(w = 0.4, N=2)
-    Limb = OneDOFLimb(q0=np.pi/2-0.5, b=0.001, a1 = 0.4,
+    Limb = OneDOFLimb(q0=np.pi/2+0.4, b=0.001, a1 = 0.4,
                       a2= 0.05, m=0.3, l=0.3)
     AL = Afferented_Limb(
                 Limb = Limb,
@@ -662,11 +654,11 @@ def test_Net_Limb_connect():
                            Limb = AL)
 
     
-    T = np.linspace(0, 7000, 50000)
+    T = np.linspace(0, 20000, 50000)
     I = np.zeros(2)
-    I[0] = 5.
-    I[1] = 5
-    input = lambda t: (I)*(t<3000)
+    I[0] = 0
+    I[1] = 0
+    input = lambda t: (I)
     V = np.zeros((len(T), N))
     F_flex = np.zeros(len(T))
     F_ext = np.zeros(len(T))
@@ -676,11 +668,11 @@ def test_Net_Limb_connect():
     dt = T[1] - T[0]
     for i, t in enumerate(T):
         V[i] = sys.net.V_prev
-        F_flex[i] = sys.Limb.Flexor.F_prev
-        F_ext[i] = sys.Limb.Extensor.F_prev
+        F_flex[i] = sys.F_flex
+        F_ext[i] = sys.F_ext
         Afferents[i] = sys.Limb.output
-        Q[i] = sys.Limb.Limb.q
-        W[i] = sys.Limb.Limb.w
+        Q[i] = sys.q
+        W[i] = sys.w
         sys.step(dt = dt, Iapp = input(t))
 
     plt.figure()
