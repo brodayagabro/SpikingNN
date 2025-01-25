@@ -246,7 +246,7 @@ class Izhikevich_Network(NameNetwork):
         else:
             raise Exception(f"Excepted d with size {N}, but size {len(d)} was sent...")
 
-        self.set_init_conditions(np.zeros(self.N))
+        self.set_init_conditions(v_noise=np.zeros(self.N))
 
 	
     def run_state(self, U, V, I_syn, I_app):
@@ -254,7 +254,8 @@ class Izhikevich_Network(NameNetwork):
         dUdt = self.a*(self.b*V - U);
         return (dVdt, dUdt)
     
-    def set_init_conditions(self, v_noise : np.ndarray):
+    def set_init_conditions(self, **kwargs):
+        v_noise = kwargs.get('v_noise', np.zeros(self.N))
         self.V = self.c + v_noise
         self.U = self.c*self.b
         self.U_prev = self.U
@@ -367,7 +368,7 @@ def IO_Network_decorator(cls):
         
             self.P = kwargs.get('P', 
                                 np.ones((self.output_size, self.N)))
-            print(self.P.shape)
+            
             if np.shape(self.P) != (self.output_size, self.N):
                 raise Exception (f"Output matrix P must have wrong shape ({self.output_size}, {self.N})")
         
