@@ -536,9 +536,9 @@ class Pendulum:
         self.w_prev = self.w
         self.own_T = 2*np.pi*np.sqrt(2*ls/(3*self.g))
 
-    def set_init_conditions(self):
-        self.q = self.q0
-        self.w = self.w0
+    def set_init_conditions(self, **kwargs):
+        self.q = kwargs.get('q0', self.q0)
+        self.w = kwargs.get('w0', self.w0)
         self.q_prev = self.q
         self.w_prev = self.w
 
@@ -670,8 +670,8 @@ class Afferented_Limb:
         self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
         self.output[5] = self.Afferents.Ib(self.F_ext)
 
-    def set_init_conditions(self):
-        self.Limb.set_init_conditions()
+    def set_init_conditions(self, **kwargs):
+        self.Limb.set_init_conditions(**kwargs)
         self.Flexor.set_init_conditions()
         self.Extensor.set_init_conditions()
 
@@ -695,7 +695,7 @@ class Net_Limb_connect:
                  Limb = Afferented_Limb()):
         self.net = Network
         self.net.set_init_conditions(
-                np.random.normal(size=self.net.N, scale=0.5)
+                v_noise=np.random.normal(size=self.net.N, scale=0.5)
                 )
         self.Limb = Limb
     
@@ -723,9 +723,9 @@ class Net_Limb_connect:
     def w(self):
         return self.Limb.w
 
-    def set_init_conditions(self):
-        self.net.set_init_conditions()
-        self.Limb.set_init_conditions()
+    def set_init_conditions(self, **kwargs):
+        self.net.set_init_conditions(**kwargs)
+        self.Limb.set_init_conditions(**kwargs)
 
     def step(self, dt=0.1, Iapp=0):
         # running network
