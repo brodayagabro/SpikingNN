@@ -385,7 +385,7 @@ def IO_Network_decorator(cls):
             #print(self.Q_app.dot(Iapp).shape)
             #print(self.Q_aff.dot(Iaff).shape)
             I_in = self.Q_app.dot(Iapp) + self.Q_aff.dot(Iaff)
-            super().step(dt=0.1, Iapp=I_in)
+            super().step(dt=dt, Iapp=I_in)
             self.V_out = self.P.dot(self.output)
         
         def __str__(self):
