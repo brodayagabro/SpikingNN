@@ -510,6 +510,48 @@ neuromechanical model' by Markin S. et. all.
         d_norm = np.where(L>=self.L_th, (L-self.L_th)/self.L_th, 0)
         return self.k_dII*d_norm + self.k_nII*input + self.const_II
 
+class Simple_Afferents:
+    L_th = 0.059 #m
+    F_th = 3.38# N
+    def __init__(self):
+        pass
+
+    def Ia(self, v, L, *args):
+        """
+        Calculate Ia-axon type activity by formula:
+        Ia = v_norm
+        arguments:
+        v - muscle velocity
+        L - muscle lenght
+        """
+        v_norm = np.where(v>=0, v/self.L_th, 0)
+        d_norm = np.where(L>=self.L_th, (L-self.L_th)/self.L_th, 0)
+        Ia = v_norm
+        return Ia
+
+    def Ib(self, F, *args):
+        """
+        Calculate Ib-axon activity by formula:
+        Ib = F_norm
+        F_norm - normilized muscle force
+        aruments:
+        F - muscle force
+        """
+        F_norm = np.where(F>=self.F_th, (F-self.F_th)/self.F_th, 0)
+        return F_norm
+
+    def II(self, L, *args):
+        """
+        Calculate II-axon activity by formula:
+        II = d_norm
+        d_norm - normilized muscle lenght
+        const_II - default activity
+        arguments:
+        L - muscle length
+        """
+        d_norm = np.where(L>=self.L_th, (L-self.L_th)/self.L_th, 0)
+        return d_norm
+
 
 
 class Pendulum:
@@ -633,6 +675,64 @@ class Afferented_Limb:
                  Extensor = SimpleAdaptedMuscle()
                 ):
         self.Afferents = Afferents()
+        self.Limb = Limb
+        self.Afferents.L_th = np.sqrt(self.Limb.a1**2+self.Limb.a2**2)
+        self.Flexor = Flexor
+        self.Extensor = Extensor
+        # Output afferent vector
+        self.output = np.zeros(6)# Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_f
+        self.F_flex = 0
+        self.F_ext = 0
+  
+    @property
+    def q(self):
+        return self.Limb.q
+
+    @property
+    def w(self):
+        return self.Limb.w
+
+    def calc_afferents(self):
+        # Limb_state
+        q = self.Limb.q # angle
+        w = self.Limb.w # rotation
+        # Calc muscles' state
+        L_flex = self.Limb.L(q)
+        v_flex = self.Limb.h(L_flex, q)*w
+        L_ext = self.Limb.L(np.pi-q)
+        v_ext = -self.Limb.h(L_ext, np.pi-q)*w
+        
+        # Flexor afferents
+        self.output[0] = self.Afferents.Ia(v_flex, L_flex, self.Flexor.x)
+        self.output[1] = self.Afferents.II(L_flex, self.Flexor.x)
+        self.output[2] = self.Afferents.Ib(self.F_flex)
+        
+        #Extensor afferents
+        self.output[3] = self.Afferents.Ia(v_ext, L_ext, self.Extensor.x)
+        self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
+        self.output[5] = self.Afferents.Ib(self.F_ext)
+
+    def set_init_conditions(self, **kwargs):
+        self.Limb.set_init_conditions(**kwargs)
+        self.Flexor.set_init_conditions()
+        self.Extensor.set_init_conditions()
+
+    def step(self, dt=0.1, uf=0, ue=0):
+        # uf - flexor input, ue - extensor input
+        self.Flexor.step(dt=dt, u=uf)
+        self.Extensor.step(dt=dt, u=ue)
+        self.F_flex = self.Flexor.F
+        self.F_ext = self.Extensor.F
+        self.Limb.step(dt=dt, F_flex=self.F_flex, F_ext=self.F_ext)
+        self.calc_afferents()
+
+class Simple_Afferented_Limb:
+    def __init__(self, 
+                 Limb = OneDOFLimb(),
+                 Flexor = SimpleAdaptedMuscle(),
+                 Extensor = SimpleAdaptedMuscle()
+                ):
+        self.Afferents = Simple_Afferents()
         self.Limb = Limb
         self.Afferents.L_th = np.sqrt(self.Limb.a1**2+self.Limb.a2**2)
         self.Flexor = Flexor
