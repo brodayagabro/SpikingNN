@@ -6,7 +6,7 @@ def find_bursts(firings_t, Tmax):
     # интенсивность спайковой активности на электроде
     fc = len(firings_t)/Tmax
     # определние порогового времени для малого пачечного события
-    tau_c = min(2/(fc), 100)
+    tau_c = min(2/(fc), 10)
     #print(tau_c)
     brusts = []
     brust = [firings_t[0]]
