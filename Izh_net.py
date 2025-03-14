@@ -594,6 +594,7 @@ class Pendulum:
         self.q = self.q_prev + 0.001*dt*(self.w_prev)
         self.q_prev = self.q
         self.w_prev = self.w
+        return self.w, self.q
 
 
 
@@ -638,8 +639,8 @@ class OneDOFLimb(Pendulum):
         L_ext = self.L(np.pi-self.q)
         h_flex = self.h(L_flex, self.q)
         h_ext = self.h(L_ext, np.pi-self.q)
-        self.M_tot = -F_flex*h_flex + F_ext*h_ext + M
-        super().step(dt=dt, M=self.M_tot)
+        self.M_tot = F_flex*h_flex - F_ext*h_ext + M
+        return super().step(dt=dt, M=self.M_tot)
 
 
 class OneDOFLimb_withGR(OneDOFLimb):
