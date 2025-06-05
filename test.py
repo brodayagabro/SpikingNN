@@ -84,7 +84,7 @@ def test_IzhIOnet_sym():
     net = Izhikevich_IO_Network(input_size=2, output_size=2,
                                 afferent_size=6, N=4, Q_app=Q_app,
                                 Q_aff = Q_aff , P=P, W=W)
-    net.set_init_conditions(np.random.normal(size=net.N))
+    net.set_init_conditions(v_noise=np.random.normal(size=net.N))
     net.set_synaptic_relax_constant(tau_syn)
     T = np.linspace(0, 500, 2000)
     I_app = lambda t: np.array([0, 0])
@@ -710,7 +710,7 @@ if __name__=="__main__":
     #test_OneDOFLimb_withGR()
     #test_all()    
     #test_IzhIOnet_step()
-    #test_IzhIOnet_sym()
+    test_IzhIOnet_sym()
     #test_Afferents()
     #test_Afferented_Limb()
     #test_FHN_Network()
