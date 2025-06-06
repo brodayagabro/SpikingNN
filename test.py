@@ -45,7 +45,7 @@ def test_IzhIOnet_step():
             [0, 0, 1, 0],
             [0, 0, 0, 1]
         ])
-    net = Izhikevich_IO_Network(input_size=2, output_size=2, N=4, Q_app=Q_app,Q_aff = Q_aff , P=P)
+    net = Izhikevich_IO_Network(input_size=2, output_size=2, afferent_size=2, N=4, Q_app=Q_app,Q_aff = Q_aff , P=P)
     I_app = np.array([0, 0])
     I_aff = np.zeros(2)
     net.step(dt=0.1, Iapp=I_app, Iaff=I_aff)
@@ -84,7 +84,7 @@ def test_IzhIOnet_sym():
     net = Izhikevich_IO_Network(input_size=2, output_size=2,
                                 afferent_size=6, N=4, Q_app=Q_app,
                                 Q_aff = Q_aff , P=P, W=W)
-    net.set_init_conditions(np.random.normal(size=net.N))
+    net.set_init_conditions(v_noise = np.random.normal(size=net.N))
     net.set_synaptic_relax_constant(tau_syn)
     T = np.linspace(0, 500, 2000)
     I_app = lambda t: np.array([0, 0])
@@ -205,7 +205,7 @@ def test_all():
     A, B, C, D = types2params(types)
     print(A, B, C, D)
     net = Izhikevich_Network(N=N, a=A, b=B, c=C, d=D)
-    net.set_init_conditions(np.random.normal(size=N))
+    net.set_init_conditions(v_noise = np.random.normal(size=N))
     # Neuron_weigths
     W = [
             [0, 0, 0, -1.1],
@@ -705,14 +705,25 @@ def test_Net_Limb_connect():
 
 
 if __name__=="__main__":
-    #test_OneDOFLimb()
-    #test_Pendulum()
-    #test_OneDOFLimb_withGR()
-    #test_all()    
-    #test_IzhIOnet_step()
-    #test_IzhIOnet_sym()
-    #test_Afferents()
-    #test_Afferented_Limb()
-    #test_FHN_Network()
-    #test_FHN_Network_with_Limb()
+    print('test_OneDOFLimb')
+    test_OneDOFLimb()
+    print('test_Pendulum')
+    test_Pendulum()
+    print('test_OneDOFLimb_withGR')
+    test_OneDOFLimb_withGR()
+    print('test_all')
+    test_all()    
+    print("test_IZhIO_step")
+    test_IzhIOnet_step()
+    print('test_IzhIO_sym')
+    test_IzhIOnet_sym()
+    print('test_Afferents')
+    test_Afferents()
+    print('test_Afferented_LImb')
+    test_Afferented_Limb()
+    print('test_FHN_Network')
+    test_FHN_Network()
+    print('test FNH Network connected to limb')
+    test_FHN_Network_with_Limb()
+    print('test Net limb connect class')
     test_Net_Limb_connect()

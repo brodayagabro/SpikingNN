@@ -186,9 +186,56 @@ class NameNetwork(Network):
                 if self.M[j, i] != 0:
                     print(f"{self.names[i]} -> {self.names[j]} type: {self.M[j, i]}")
 
+    def get_weight_by_names(self, source_name, target_name):
+        """
+        Return weight of connection between two neurons by them names
+
+        Params:
+        Source_name
+        Target_name
+
+        Return:
+        None if names are not found or there is not connection
+        Weight of connections
+        """
+
+        try:
+            source_idx = self.names.index(source_name)
+            target_idx = self.names.index(target_name)
+            if self.M[target_idx, source_idx] != 0:
+                return self.W[target_idx, source_idx]
+            return None
+        except ValueError:
+            return None
+
+    def set_weights_by_names(
+            self,
+            source_name,
+            target_name,
+            new_weight):
+        """
+        Change weight of connections by names of neurons
+
+        Params:
+        source_name(str)
+        target_name(str)
+        new_weight(float)
+        """
+
+        try:
+            source_idx = self.names.index(source_name)
+            target_idx = self.names.index(target_name)
+            if self.M[target_idx, source_idx] != 0:
+                self.W[target_idx, source_idx] = new_weight
+                return True
+            return False
+        except ValueError:
+            return False
 
 
-# Необходимо дописать класс для определения параметров входа и параметров выхода...
+
+
+# для определения параметров входа и параметров выхода...
 class Izhikevich_Network(NameNetwork):
     """
     Network of Izhikevich neurons
