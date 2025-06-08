@@ -856,6 +856,10 @@ class Net_Limb_connect:
         return self.net.U_prev
 
     @property
+    def I_syn(self):
+        return self.net.I_syn
+
+    @property
     def F_flex(self):
         return self.Limb.Flexor.F_prev
 
