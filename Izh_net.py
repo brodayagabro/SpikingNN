@@ -461,11 +461,6 @@ class SimpleAdaptedMuscle:
     -- Output Force
     dF(t)/dt + F(t)/tau_1 = Ax(t)
     """
-    tau_c = 1/71 # 1/ms
-    tau_1 = 1/130 # 1/ms
-    m = 2.5
-    k = 0.75
-    A = 0.0074 # 1/ms
 
     def __init__(self, **kwargs):
         """
@@ -473,7 +468,13 @@ class SimpleAdaptedMuscle:
         w - weight of neuron-muscle synapse
         """
         self.w = kwargs.get('w', 0.5)
-        self.A = self.A*kwargs.get('N', 10)
+        self.A = kwargs.get('A', 0.0074)
+        self.N = kwargs.get('N', 1)
+        self._A = self.A*self.N
+        self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
+        self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
+        self.m = kwargs.get('m', 2.5)
+        self.k = kwargs.get('k', 0.75)
         self.Cn = 0
         self.Cn_prev = 0
         self.F = 0
@@ -486,6 +487,16 @@ class SimpleAdaptedMuscle:
         self.F = 0
         self.F_prev = 0
         self.x = 0
+
+    def set_params(self, **kwargs):
+        self.w = kwargs.get('w', 0.5)
+        self.A = kwargs.get('A', 0.0074)
+        self.N = kwargs.get('N', 1)
+        self._A = self.A*self.N
+        self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
+        self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
+        self.m = kwargs.get('m', 2.5)
+        self.k = kwargs.get('k', 0.75)
 
     def step(self, dt = 0.1, u=0):
         self.Cn = self.Cn_prev + dt*(self.w*u - self.Cn_prev*self.tau_c)
@@ -876,6 +887,11 @@ class Net_Limb_connect:
         return self.Limb.w
 
     def set_init_conditions(self, **kwargs):
+        """
+        keyword arguments:
+        - v_noise : np.ndarray shape(N,), where N - count of neurons
+        - q0, w0 - initial angle(radians) and angular velocity(radinas / second)
+        """
         self.net.set_init_conditions(**kwargs)
         self.Limb.set_init_conditions(**kwargs)
 
