@@ -76,7 +76,7 @@ class Var_Limb(Net_Limb_connect):
         try:
             afferent_idx = self.names["afferents"].index(afferent_name)
             neuron_idx = self.names["neurons"].index(neuron_name)
-            self.net.Q_aff[afferent_idx, neuron_idx] = new_weight
+            self.net.Q_aff[neuron_idx, afferent_idx] = new_weight
             return True
         except ValueError:
             return False
