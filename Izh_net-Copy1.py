@@ -203,7 +203,6 @@ class NameNetwork(Network):
             source_idx = self.names.index(source_name)
             target_idx = self.names.index(target_name)
             if self.M[target_idx, source_idx] != 0:
-                #print(f'{source_name} --> {target_name} : {self.W[target_idx, source_idx]}')
                 return self.W[target_idx, source_idx]
             return None
         except ValueError:
@@ -222,28 +221,18 @@ class NameNetwork(Network):
         target_name(str)
         new_weight(float)
         """
+
         try:
             source_idx = self.names.index(source_name)
             target_idx = self.names.index(target_name)
             if self.M[target_idx, source_idx] != 0:
-                if self.M[target_idx, source_idx] > 0:
-                    self.W[target_idx, source_idx] = new_weight
-                elif self.M[target_idx, source_idx] < 0:
-                    self.W[target_idx, source_idx] = -new_weight
+                self.W[target_idx, source_idx] = new_weight
                 return True
             return False
         except ValueError:
             return False
-            
-    def connect_net(self,
-            source_name,
-            target_name):
-        source_idx = self.names.index(source_name)
-        target_idx = self.names.index(target_name)
-        if self.M[target_idx, source_idx] != 0:
-            return True
-        return False
-            
+
+
 
 
 # для определения параметров входа и параметров выхода...
@@ -472,6 +461,11 @@ class SimpleAdaptedMuscle:
     -- Output Force
     dF(t)/dt + F(t)/tau_1 = Ax(t)
     """
+    tau_c = 1/71 # 1/ms
+    tau_1 = 1/130 # 1/ms
+    m = 2.5
+    k = 0.75
+    A = 0.0074 # 1/ms
 
     def __init__(self, **kwargs):
         """
@@ -479,13 +473,7 @@ class SimpleAdaptedMuscle:
         w - weight of neuron-muscle synapse
         """
         self.w = kwargs.get('w', 0.5)
-        self.A = kwargs.get('A', 0.0074)
-        self.N = kwargs.get('N', 10)
-        self._A = self.A*self.N
-        self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
-        self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
-        self.m = kwargs.get('m', 2.5)
-        self.k = kwargs.get('k', 0.75)
+        self.A = self.A*kwargs.get('N', 10)
         self.Cn = 0
         self.Cn_prev = 0
         self.F = 0
@@ -498,16 +486,6 @@ class SimpleAdaptedMuscle:
         self.F = 0
         self.F_prev = 0
         self.x = 0
-
-    def set_params(self, **kwargs):
-        self.w = kwargs.get('w', 0.5)
-        self.A = kwargs.get('A', 0.0074)
-        self.N = kwargs.get('N', 1)
-        self._A = self.A*self.N
-        self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
-        self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
-        self.m = kwargs.get('m', 2.5)
-        self.k = kwargs.get('k', 0.75)
 
     def step(self, dt = 0.1, u=0):
         self.Cn = self.Cn_prev + dt*(self.w*u - self.Cn_prev*self.tau_c)
@@ -708,7 +686,7 @@ class OneDOFLimb(Pendulum):
         L_ext = self.L(np.pi-self.q)
         h_flex = self.h(L_flex, self.q)
         h_ext = self.h(L_ext, np.pi-self.q)
-        self.M_tot = 10 * F_flex*h_flex - 10 * F_ext*h_ext + M
+        self.M_tot = F_flex*h_flex - F_ext*h_ext + M
         return super().step(dt=dt, M=self.M_tot)
 
 
