@@ -512,7 +512,7 @@ class SimpleAdaptedMuscle:
     def step(self, dt = 0.1, u=0):
         self.Cn = self.Cn_prev + dt*(self.w*u - self.Cn_prev*self.tau_c)
         self.x = self.Cn**self.m/(self.Cn**self.m + self.k**self.m)
-        self.F = self.F_prev + dt*(self.A*self.x - self.F_prev*self.tau_1)
+        self.F = self.F_prev + dt*( self.A*self.N*self.x - self.F_prev*self.tau_1)
         self.F_prev = self.F
         self.Cn_prev = self.Cn
 
