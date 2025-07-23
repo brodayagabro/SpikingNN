@@ -481,7 +481,7 @@ class SimpleAdaptedMuscle:
         self.w = kwargs.get('w', 0.5)
         self.A = kwargs.get('A', 0.0074)
         self.N = kwargs.get('N', 10)
-        self._A = self.A*self.N
+        #self._A = self.A*self.N
         self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
         self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
         self.m = kwargs.get('m', 2.5)
@@ -503,7 +503,7 @@ class SimpleAdaptedMuscle:
         self.w = kwargs.get('w', 0.5)
         self.A = kwargs.get('A', 0.0074)
         self.N = kwargs.get('N', 1)
-        self._A = self.A*self.N
+        #self._A = self.A*self.N
         self.tau_c = 1/kwargs.get('tau_c', 71) # 1/ms
         self.tau_1 = 1/kwargs.get('tau_1', 130) # 1/ms
         self.m = kwargs.get('m', 2.5)

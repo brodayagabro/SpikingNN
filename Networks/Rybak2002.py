@@ -5,7 +5,7 @@ def Rybak2002_Mask():
     M = np.array([
     # source neuron number
     #  0     1     2     3     4     5     6     7     8     9    10    11     target neuron
-     [ 0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,   1.,   0.,   0.],  # CPG_IN_Flex
+     [ 0.,   0.,   0.,   0.,   0.,   0.,   0.,   1.,   0.,   0.,   0.,   0.],  # CPG_IN_Flex
      [-1.,   0.,   0.,   0.,   0.,   0.,   0.,  -1.,   0.,   0.,   0.,   0.],  # CPG_N_Flex
      [ 0.,   0.,   0.,   0.,   0.,   0.,   0.,   0.,  -1.,   0.,   0.,   0.],  # Ib_IN_Flex
      [ 0.,   1.,   0.,   0.,   0.,  -1.,   0.,   0.,   0.,  -1.,   0.,   0.],  # Ia_IN_Flex
@@ -22,8 +22,6 @@ def Rybak2002_Mask():
     ])
     return M
 
-
-
 def Rybak2002_TAU(**kwargs):
     # Settings of synaptic relaxation constants
     ex_tau = kwargs.get('exitatory_tau', 10)
@@ -31,7 +29,7 @@ def Rybak2002_TAU(**kwargs):
     tau_syn = np.array([
     # source neuron number
     # 0      1      2      3      4      5      6      7       8       9      10      11        Target neuron
-     [1.,    1.,    1.,    1.,    1.,    1.,    1.,    1      ,1.,     ex_tau,     1.,     1.],  # CPG_IN_Flex
+     [1.,    1.,    1.,    1.,    1.,    1.,    1.,    ex_tau,1.,     1.,     1.,     1.],      # CPG_IN_Flex
      [in_tau,1.,    1.,    1.,    1.,    1.,    1.,    in_tau,1.,     1.,     1.,     1.],      # CPG_N_Flex
      [1.,    1.,    1.,    1.,    1.,    1.,    1.,    1.,    in_tau, 1.,     1.,     1.],      # Ib_IN_Flex
      [1.,    ex_tau,1.,    1.,    1.,    in_tau,1.,    1.,    1.,     in_tau, 1.,     1.],      # Ia_IN_Flex
@@ -42,7 +40,7 @@ def Rybak2002_TAU(**kwargs):
      [1.,    1.,    1.,    ex_tau,1.,    1.,    1.,    1.,    1.,    1.,     1.,     1.],       # CPG_IN_Ext
      [1.,    in_tau,1.,    1.,    1.,    1.,    in_tau,1.,    1.,    1.,     1.,     1.],       # CPG_N_Ext
      [1.,    1.,    in_tau,1.,    1.,    1.,    1.,    1.,    1.,    1.,     1.,     1.],       # Ib_IN_Ext
-     [1.,    1.,    1.,    in_tau,1.,    1.,    1.,    ex_tau,1.,    1.,     1.,     in_tau],   # Ia_IN_Ext
+     [1.,    1.,    1.,    in_tau,1.,    1.,    1.,    ex_tau,1.,    1.,     1.,     ex_tau],   # Ia_IN_Ext
      [1.,    1.,    1.,    in_tau,1.,    1.,    1.,    ex_tau,in_tau,1.,     1.,     in_tau],   # MN_Ext
      [1.,    1.,    1.,    1.,    1.,    in_tau,1.,    1.,    1.,    1.,     ex_tau, 1.]        # R_Ext
     ])
@@ -55,7 +53,7 @@ def Rybak2002_Weights(**kwargs):
     W = np.array([
     # source neuron number
     #  0      1      2      3      4      5      6      7      8      9     10     11      Target neuron
-     [ 0.,    0.,    0.,    0.,    0.,    0.,    0.,    0,   0.,    ex_w,   0.,    0.],   # CPG_IN_Flex
+     [ 0.,    0.,    0.,    0.,    0.,    0.,    0.,  ex_w,   0.,    0.,    0.,    0.],    # CPG_IN_Flex
      [in_w,   0.,    0.,    0.,    0.,    0.,    0.,  in_w,   0.,    0.,    0.,    0.],    # CPG_N_Flex
      [ 0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.,  in_w,   0.,    0.,    0.],    # Ib_IN_Flex
      [ 0.,  ex_w,    0.,    0.,    0.,  in_w,    0.,    0.,    0.,  in_w,   0.,    0.],    # Ia_IN_Flex
@@ -66,7 +64,7 @@ def Rybak2002_Weights(**kwargs):
      [ 0.,    0.,    0.,  ex_w,    0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.],    # CPG_IN_Ext
      [ 0.,  in_w,    0.,    0.,    0.,    0.,  in_w,    0.,    0.,    0.,    0.,    0.],    # CPG_N_Ext
      [ 0.,    0.,  in_w,    0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.,    0.],    # Ib_IN_Ext
-     [ 0.,    0.,    0.,  in_w,    0.,    0.,    0.,  ex_w,    0.,    0.,    0.,  in_w],    # Ia_IN_Ext
+     [ 0.,    0.,    0.,  in_w,    0.,    0.,    0.,  ex_w,    0.,    0.,    0.,  ex_w],    # Ia_IN_Ext
      [ 0.,    0.,    0.,  in_w,    0.,    0.,    0.,  ex_w,  in_w,    0.,    0.,  in_w],    # MN_Ext
      [ 0.,    0.,    0.,    0.,    0.,  in_w,    0.,    0.,    0.,    0.,  ex_w,    0.]     # R_Ext
     ])
@@ -129,16 +127,16 @@ def Rybak_2002_names_types():
     types = [ 
         # Flexor NeuroModule types     # Neuron Name
         'CH',                          # CPG_IN_Flex
-        'CH',                          # CPG_N_Flex
-        'RS',                          # Ib_IN_Flex
-        'RS',                          # Ia_IN_Flex
+        'CH',                          # CPG_IN_Flex
+        'FS',                          # Ib_IN_Flex
+        'FS',                          # Ia_IN_Flex
         'RS',                          # MN_Flex
         'RS',                          # R_Flex
         # Extensor NeuroModule types
         'CH',                          # CPG_IN_Ext
-        'CH',                          # CPG_N_Ext
-        'RS',                          # Ib_IN_Ext
-        'RS',                          # Ia_IN_Ext
+        'CH',                          # CPG_IN_Ext
+        'FS',                          # Ib_IN_Ext
+        'FS',                          # Ia_IN_Ext
         'RS',                          # MN_Ext
         'RS'                           # R_Ext
          
@@ -160,8 +158,8 @@ def Rybak_2002_network(*args, **kwargs):
     
     # Get Izhikevich's neuron params from kwargs
     a = kwargs.get('a', A_def)
-    #a[1] = 0.002
-    #a[7] = 0.002
+    a[1] = 0.002
+    a[7] = 0.002
     b = kwargs.get('b', B_def)
     c = kwargs.get('c', C_def)
     d = kwargs.get('d', D_def)
@@ -169,7 +167,6 @@ def Rybak_2002_network(*args, **kwargs):
     ## Synaptic settings
     # I
     M = Rybak2002_Mask()
-    #print(np.count_nonzero(M))
     
     # II
     tau_syn = Rybak2002_TAU(**kwargs)
@@ -212,6 +209,3 @@ def Rybak_2002_network(*args, **kwargs):
         tau_syn = tau_syn
     )
     return Net
-
-if __name__=="__main__":
-    Rybak_2002_network()
