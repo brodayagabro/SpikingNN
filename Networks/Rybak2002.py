@@ -160,8 +160,8 @@ def Rybak_2002_network(*args, **kwargs):
     
     # Get Izhikevich's neuron params from kwargs
     a = kwargs.get('a', A_def)
-    a[1] = 0.002
-    a[7] = 0.002
+    #a[1] = 0.002
+    #a[7] = 0.002
     b = kwargs.get('b', B_def)
     c = kwargs.get('c', C_def)
     d = kwargs.get('d', D_def)
