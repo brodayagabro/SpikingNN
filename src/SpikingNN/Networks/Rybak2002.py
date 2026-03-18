@@ -1,5 +1,5 @@
 import numpy as np
-from Izh_net import *
+from ..Izh_net import *
 def Rybak2002_Mask():
     # Setting network connections' Mask like scheme(fig. 2)
     M = np.array([

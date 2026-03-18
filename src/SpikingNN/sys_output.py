@@ -1,5 +1,5 @@
 import numpy as np
-from Izh_net import OneDOFLimb 
+from .Izh_net import OneDOFLimb 
 
 
 class lsim:
