@@ -4,7 +4,8 @@ from scipy import signal as sig
 from matplotlib import pyplot as plt
 from SpikingNN.Izh_net import *
 from SpikingNN.net_preparation import *
-
+import SpikingNN
+print(SpikingNN.__file__)
 
 def run_net(T, net, I_app, I_aff):
     """
