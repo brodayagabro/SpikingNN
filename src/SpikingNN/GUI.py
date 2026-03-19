@@ -331,7 +331,7 @@ def create_weight_matrix(network, show_annotations=True, colorscale='RdBu'):
         showscale=True,
         colorbar=dict(title='Вес'),
         hovertemplate='<b>Связь: %{x} → %{y}</b><br>Вес: %{z:.2f}<br>Тип: %{customdata}<br><extra></extra>',
-        customdata=[['Возбуждающая' if M[j, i] > 0 else 'Тормозная' if M[j, i] < 0 else 'Нет связи' for i in range(N)] for j in range(N)],
+        customdata=[['Возбуждающая' if W[j, i] > 0 else 'Тормозная' if W[j, i] < 0 else 'Нет связи' for i in range(N)] for j in range(N)],
         name='Веса'
     ))
     
@@ -461,7 +461,7 @@ with st.sidebar:
     if st.button("➕ Добавить", use_container_width=True):
         if st.session_state.network is not None:
             try:
-                st.session_state.network.connect(int(conn_i), int(conn_j), coef=1 if conn_w > 0 else -1, w=abs(conn_w))
+                st.session_state.network.connect(int(conn_i), int(conn_j), coef=coef, w=abs(conn_w))
                 log_message(f"🔗 Добавлена связь: {conn_i} -> {conn_j}, вес={conn_w}")
                 st.success("Связь добавлена!")
             except Exception as e:
@@ -645,14 +645,14 @@ else:
             time_data, voltage_data, spike_data = data['time'], data['voltage'], data['spikes']
             
             fig = make_subplots(rows=2, cols=1, subplot_titles=('Мембранные потенциалы', 'Спайковая активность'), vertical_spacing=0.1)
-            n_show = min(5, voltage_data.shape[1])
+            n_show = voltage_data.shape[1]
             colors = ['#2E86AB', '#A23B72', '#F18F01', '#C73E1D', '#6A994E']
             
             for i in range(n_show):
                 fig.add_trace(go.Scatter(x=time_data, y=voltage_data[:, i], mode='lines', name=f'Neuron {i}', line=dict(color=colors[i % len(colors)], width=2)), row=1, col=1)
                 spike_times = time_data[spike_data[:, i] > 0]
                 if len(spike_times) > 0:
-                    fig.add_trace(go.Scatter(x=spike_times, y=[i] * len(spike_times), mode='markers', marker=dict(size=8, color=colors[i % len(colors)]), showlegend=False), row=2, col=1)
+                    fig.add_trace(go.Scatter(x=spike_times, y=[i] * len(spike_times), mode='markers', marker=dict(size=2, color='#000000'), showlegend=False), row=2, col=1)
             
             fig.update_layout(height=600, showlegend=True, hovermode='x unified', template='plotly_white')
             fig.update_xaxes(title_text="Время (ms)", row=2, col=1)
@@ -753,8 +753,7 @@ else:
                                 old_weight = st.session_state.network.W[j, i]
                                 new_weight = edited_df.iloc[j, i]
                                 if abs(old_weight - new_weight) > 0.001:
-                                    coef = np.sign(st.session_state.network.M[j, i])
-                                    st.session_state.network.W[j, i] = abs(new_weight) * coef
+                                    st.session_state.network.W[j, i] = new_weight
                                     log_message(f"✏️ Вес [{i}→{j}]: {old_weight:.2f} → {st.session_state.network.W[j, i]:.2f}")
                                     changes_applied = True
                     if changes_applied:
@@ -771,8 +770,7 @@ else:
                     for i in range(N):
                         for j in range(N):
                             if st.session_state.network.M[j, i] != 0:
-                                coef = np.sign(st.session_state.network.M[j, i])
-                                st.session_state.network.W[j, i] = coef * 1.0
+                                st.session_state.network.W[j, i] = 1.0
                     log_message("🔄 Веса сброшены к 1.0")
                     st.success("Веса сброшены!")
                     st.rerun()
@@ -811,8 +809,7 @@ else:
                                         new_w = np.random.uniform(rw_min, rw_max)
                                     else:
                                         new_w = np.random.normal((rw_min+rw_max)/2, rw_std)
-                                    coef = np.sign(st.session_state.network.M[j, i])
-                                    st.session_state.network.W[j, i] = abs(new_w) * coef
+                                    st.session_state.network.W[j, i] = new_w
                         log_message(f"🎲 Веса сгенерированы: [{rw_min}, {rw_max}], {rw_dist}")
                         st.success("Веса сгенерированы!")
                         st.session_state.show_random_dialog = False
@@ -960,7 +957,7 @@ else:
                     if st.session_state.network.M[j, i] != 0:
                         old_w = st.session_state.network.W[j, i]
                         coef = np.sign(st.session_state.network.M[j, i])
-                        st.session_state.network.W[j, i] = abs(new_weight) * coef
+                        st.session_state.network.W[j, i] = new_weight
                         log_message(f"✏️ Вес [{i}→{j}]: {old_w:.2f} → {st.session_state.network.W[j, i]:.2f}")
                         st.success(f"Вес обновлён: {i} → {j}")
                         st.rerun()
@@ -989,8 +986,8 @@ else:
             if st.button("🔌 Добавить", use_container_width=True, key="add_conn_matrix"):
                 try:
                     i, j = int(select_i), int(select_j)
-                    w = abs(new_weight)
-                    coef = 1 if new_weight >= 0 else -1
+                    w = new_weight
+                    coef = 1 if conn_w >= 0 else -1
                     st.session_state.network.connect(i, j, coef=coef, w=w, tau=10.0)
                     log_message(f"🔗 Добавлена связь: {i} → {j}")
                     st.success(f"Связь добавлена: {i} → {j}")
@@ -1060,7 +1057,6 @@ else:
         st.markdown("### 📊 Статистика")
         
         W = st.session_state.network.W
-        st.session_state.network.M = np.sign(st.session_state.network.W)
         M = st.session_state.network.M
         TAU = np.zeros_like(W)
         for i in range(N):
@@ -1068,8 +1064,8 @@ else:
                 if M[j, i] != 0:
                     TAU[j, i] = 1.0 / st.session_state.network.tau_syn[j, i]
         n_conn = np.count_nonzero(M)
-        n_exc = np.sum(M > 0)
-        n_inh = np.sum(M < 0)
+        n_exc = np.sum(W > 0)
+        n_inh = np.sum(W < 0)
         w_mean = np.mean(W[M != 0]) if n_conn > 0 else 0
         w_std = np.std(W[M != 0]) if n_conn > 0 else 0
         w_min = np.min(W[M != 0]) if n_conn > 0 else 0
@@ -1123,7 +1119,7 @@ else:
         for i in range(N):
             for j in range(N):
                 if st.session_state.network.M[j, i] != 0:
-                    connections.append(f"{i} → {j} (вес: {st.session_state.network.W[j, i]:.2f}, тип: {'возбуждающий' if st.session_state.network.M[j, i] > 0 else 'тормозной'})")
+                    connections.append(f"{i} → {j} (вес: {st.session_state.network.W[j, i]:.2f}, тип: {'возбуждающий' if st.session_state.network.W[j, i] > 0 else 'тормозной'})")
         if connections:
             for conn in connections:
                 st.write(f"- {conn}")
