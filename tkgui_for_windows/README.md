@@ -35,7 +35,7 @@ venv\Scripts\activate
 pip install numpy matplotlib networkx pyinstaller
 # install SpikingNN library
 cd SpikingNN
-pip install -e .
+pip install .
 ```
 
 ### 2. Run the Build Script
