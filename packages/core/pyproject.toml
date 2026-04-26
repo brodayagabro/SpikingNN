@@ -1,0 +1,96 @@
+[build-system]
+requires = ["setuptools>=61.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "spikingnn-core"
+version = "0.1.0"
+description = "Computational engine for spiking neural network simulation based on Izhikevich model"
+readme = "README.md"
+requires-python = ">=3.8"
+license = {text = "MIT"}
+authors = [
+    {name = "Kovalev Nickolai", email = "kovalev.na@phystech.edu"},
+    {name = "Guba Artem"}
+]
+keywords = [
+    "neural-networks",
+    "spiking-neurons",
+    "izhikevich",
+    "computational-neuroscience",
+    "neuromechanics",
+    "CPG"
+]
+classifiers = [
+    "Development Status :: 3 - Alpha",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "License :: OSI Approved :: MIT License",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+]
+
+dependencies = [
+    "numpy>=1.20.0",
+    "scipy>=1.7.0",
+    "matplotlib>=3.4.0",
+]
+
+[project.optional-dependencies]
+dev = [
+    "pytest>=7.0.0",
+    "pytest-cov>=4.0.0",
+    "black>=22.0.0",
+    "mypy>=0.990",
+    "ruff>=0.1.0",
+]
+docs = [
+    "sphinx>=6.0.0",
+    "sphinx-rtd-theme>=1.2.0",
+    "numpydoc>=1.5.0",
+]
+
+[project.urls]
+Homepage = "https://github.com/brodayagabro/SpikingNN"
+Documentation = "https://github.com/brodayagabro/SpikingNN/tree/main/packages/core"
+Repository = "https://github.com/brodayagabro/SpikingNN.git"
+"Bug Tracker" = "https://github.com/brodayagabro/SpikingNN/issues"
+
+[tool.setuptools.packages.find]
+where = ["src"]
+include = ["spikingnn_core*"]
+
+[tool.setuptools.package-data]
+spikingnn_core = ["py.typed"]
+
+[tool.pytest.ini_options]
+testpaths = ["tests"]
+python_files = ["test_*.py"]
+python_classes = ["Test*"]
+python_functions = ["test_*"]
+addopts = "-v --cov=spikingnn_core --cov-report=term-missing"
+
+[tool.black]
+line-length = 100
+target-version = ['py38', 'py39', 'py310', 'py311']
+include = '\.pyi?$'
+
+[tool.ruff]
+line-length = 100
+target-version = "py38"
+select = ["E", "F", "I", "N", "W", "D", "UP"]
+ignore = ["D203", "D213"]
+
+[tool.mypy]
+python_version = "3.8"
+warn_return_any = true
+warn_unused_configs = true
+disallow_untyped_defs = false
+disallow_incomplete_defs = false
+check_untyped_defs = true
+no_implicit_optional = true
+warn_redundant_casts = true
+warn_unused_ignores = true
