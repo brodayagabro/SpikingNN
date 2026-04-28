@@ -1,4 +1,4 @@
-from .Izh_net import *
+from SpikingNN.Izh_net import *
 import numpy as np
 import matplotlib.pyplot as plt
 
