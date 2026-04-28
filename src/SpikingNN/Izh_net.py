@@ -863,6 +863,7 @@ class Net_Limb_connect:
                                                  afferent_size=6,
                                                  N = 4),
                  Limb = Afferented_Limb()):
+        
         self.net = Network
         self.net.set_init_conditions(
                 v_noise=np.random.normal(size=self.net.N, scale=0.5)

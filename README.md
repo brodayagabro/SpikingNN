@@ -17,6 +17,11 @@ cd SpikingNN
 Install package using pip:
 
 ```
+pip install .
+```
+
+With devmode:
+```
 pip install -e .
 ```
 
