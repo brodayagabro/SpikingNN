@@ -9,7 +9,7 @@ import networkx as nx
 import pandas as pd
 
 # Импорт из вашего файла
-from Izh_net import (
+from SpikingNN.core.Izh_net import (
     Izhikevich_Network, 
     Izhikevich_IO_Network, 
     Network,
@@ -17,6 +17,8 @@ from Izh_net import (
     types2params,
     izhikevich_neuron
 )
+from SpikingNN.models.Var_Limb import Var_Limb, Afferented_Limb
+from SpikingNN.utils.net_preparation import find_bursts, create_firing_rastr
 
 # ============================================================
 # КОНФИГУРАЦИЯ СТРАНИЦЫ

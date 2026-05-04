@@ -1,0 +1,57 @@
+# pyproject.toml
+[build-system]
+requires = ["setuptools>=64.0", "wheel"]
+build-backend = "setuptools.build_meta"
+
+[project]
+name = "SpikingNN"
+version = "0.2.0"
+description = "This is simple module to simulate spiking neural networks"
+readme = "README.md"
+license = {text = "MIT"}
+requires-python = ">=3.8"
+authors = [
+    {name = "Kovalev Nickolai", email = "kovalev.na@phystech.edu"}
+]
+keywords = ["spiking", "neural networks", "cpg", "izhikevich", "neuromechanics"]
+classifiers = [
+    "Development Status :: 4 - Beta",
+    "Intended Audience :: Science/Research",
+    "Topic :: Scientific/Engineering :: Artificial Intelligence",
+    "Programming Language :: Python :: 3",
+    "Programming Language :: Python :: 3.8",
+    "Programming Language :: Python :: 3.9",
+    "Programming Language :: Python :: 3.10",
+    "Programming Language :: Python :: 3.11",
+    "License :: OSI Approved :: MIT License",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: POSIX :: Linux",
+    "Operating System :: MacOS :: MacOS X",
+]
+dependencies = [
+    "streamlit>=1.32.0",
+    "numpy>=1.20.0",
+    "plotly>=5.18.0",
+    "pandas>=2.0.0",
+    "networkx>=3.0",
+    "matplotlib>=3.4.0",
+    "requests>=2.25.1",
+]
+
+[project.urls]
+Homepage = "https://github.com/brodayagabro/SpikingNN"
+Documentation = "https://github.com/brodayagabro/SpikingNN#readme"
+GitHub = "https://github.com/brodayagabro/SpikingNN"
+
+[project.scripts]
+spknn-gui = "apps.launch:main"
+
+[tool.setuptools]
+package-dir = {"" = "src"}
+include-package-data = true
+
+[tool.setuptools.packages.find]
+where = ["src"]
+
+[tool.setuptools.package-data]
+SpikingNN = ["*.py", "*.md", "*.txt"]
