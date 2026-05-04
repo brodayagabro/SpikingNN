@@ -127,7 +127,7 @@ venv/
 ENV/
 env.bak/
 venv.bak/
-
+spknn_env/
 # Spyder project settings
 .spyderproject
 .spyproject
