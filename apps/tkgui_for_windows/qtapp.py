@@ -25,7 +25,7 @@ matplotlib.use('TkAgg')
 import matplotlib.patches as mpatches
 import networkx as nx
 
-from SpikingNN.Izh_net import Izhikevich_Network, types2params
+from SpikingNN.core.Izh_net import Izhikevich_Network, types2params
 
 
 # ============================================================

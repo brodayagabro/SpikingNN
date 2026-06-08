@@ -510,6 +510,7 @@ class SimpleAdaptedMuscle:
         self.k = kwargs.get('k', 0.75)
 
     def step(self, dt = 0.1, u=0):
+        #u = max(0, min(0, 100))
         self.Cn = self.Cn_prev + dt*(self.w*u - self.Cn_prev*self.tau_c)
         self.x = self.Cn**self.m/(self.Cn**self.m + self.k**self.m)
         self.F = self.F_prev + dt*( self.A*self.N*self.x - self.F_prev*self.tau_1)

@@ -8,7 +8,7 @@ __version__ = "0.0.2"
 __author__ = 'Kovalev Nickolai'
 __email__ = 'kovalev.na@phystech.edu'
 
-from .Izh_net import (
+from .core.Izh_net import (
     Izhikevich_Network,
     Izhikevich_IO_Network,
     Network,
@@ -17,6 +17,8 @@ from .Izh_net import (
     izhikevich_neuron,
 )
 
+from .core.Var_Limb import Var_Limb
+
 __all__ = [
     "Izhikevich_Network",
     "Izhikevich_IO_Network",
@@ -24,4 +26,5 @@ __all__ = [
     "NameNetwork",
     "types2params",
     "izhikevich_neuron",
+    "Var_Limb"
 ]

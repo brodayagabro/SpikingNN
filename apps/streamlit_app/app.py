@@ -17,12 +17,12 @@ import matplotlib.pyplot as plt
 import json
 from pathlib import Path
 
-from SpikingNN.Izh_net import (
+from SpikingNN.core.Izh_net import (
     Izhikevich_IO_Network, Afferented_Limb, OneDOFLimb, 
     SimpleAdaptedMuscle, Afferents
 )
-from SpikingNN.Var_Limb import Var_Limb
-from src.SpikingNN.Networks.Rybak2002 import Rybak_2002_network
+from SpikingNN.core.Var_Limb import Var_Limb
+from SpikingNN.Networks.Rybak2002 import Rybak_2002_network
 from core.dynamics import run_simulation
 from core.io_json import save_system_json, load_system_json, dict_to_system, system_to_dict
 

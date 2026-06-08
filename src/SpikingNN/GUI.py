@@ -9,7 +9,7 @@ import networkx as nx
 import pandas as pd
 
 # Импорт из вашего файла
-from Izh_net import (
+from core.Izh_net import (
     Izhikevich_Network, 
     Izhikevich_IO_Network, 
     Network,
