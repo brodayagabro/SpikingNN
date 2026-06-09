@@ -134,6 +134,8 @@ class MultiLimbSystem:
             }
             
         return state
+
+
 """
 Ручная сборка и тест системы из 4 конечностей.
 Manual assembly and test of a 4-limb system.
@@ -141,6 +143,7 @@ Manual assembly and test of a 4-limb system.
 
 import numpy as np
 import matplotlib.pyplot as plt
+from tqdm import tqdm as pbar
 from SpikingNN.core.multi_limb import MultiLimbSystem
 from SpikingNN.core.Izh_net import (
     Izhikevich_IO_Network,
@@ -247,7 +250,7 @@ def run_4_limbs_simulation():
     
     print("✅ System initialized. Starting simulation loop...")
     
-    for i in range(steps):
+    for i in pbar(range(steps)):
         # Сохраняем состояние
         V_hist[i] = system.net.V_prev
         

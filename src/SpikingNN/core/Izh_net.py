@@ -739,62 +739,188 @@ class OneDOFLimb_withGR(OneDOFLimb):
                      M = self.GR(self.w, self.q))
 
 
+# class Afferented_Limb:
+#     def __init__(self, 
+#                  Limb = OneDOFLimb(),
+#                  Flexor = SimpleAdaptedMuscle(),
+#                  Extensor = SimpleAdaptedMuscle()
+#                 ):
+#         self.Afferents = Afferents()
+#         self.Limb = Limb
+#         self.Afferents.L_th = np.sqrt(self.Limb.a1**2+self.Limb.a2**2)
+#         self.Flexor = Flexor
+#         self.Extensor = Extensor
+#         # Output afferent vector
+#         self.output = np.zeros(6)# Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_f
+#         self.F_flex = 0
+#         self.F_ext = 0
+  
+#     @property
+#     def q(self):
+#         return self.Limb.q
+
+#     @property
+#     def w(self):
+#         return self.Limb.w
+
+#     def calc_afferents(self):
+#         # Limb_state
+#         q = self.Limb.q # angle
+#         w = self.Limb.w # rotation
+#         # Calc muscles' state
+#         L_flex = self.Limb.L(q)
+#         v_flex = self.Limb.h(L_flex, q)*w
+#         L_ext = self.Limb.L(np.pi-q)
+#         v_ext = -self.Limb.h(L_ext, np.pi-q)*w
+        
+#         # Flexor afferents
+#         self.output[0] = self.Afferents.Ia(v_flex, L_flex, self.Flexor.x)
+#         self.output[1] = self.Afferents.II(L_flex, self.Flexor.x)
+#         self.output[2] = self.Afferents.Ib(self.F_flex)
+        
+#         #Extensor afferents
+#         self.output[3] = self.Afferents.Ia(v_ext, L_ext, self.Extensor.x)
+#         self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
+#         self.output[5] = self.Afferents.Ib(self.F_ext)
+
+#     def set_init_conditions(self, **kwargs):
+#         self.Limb.set_init_conditions(**kwargs)
+#         self.Flexor.set_init_conditions()
+#         self.Extensor.set_init_conditions()
+
+#     def step(self, dt=0.1, uf=0, ue=0):
+#         # uf - flexor input, ue - extensor input
+#         self.Flexor.step(dt=dt, u=uf)
+#         self.Extensor.step(dt=dt, u=ue)
+#         self.F_flex = self.Flexor.F
+#         self.F_ext = self.Extensor.F
+#         self.Limb.step(dt=dt, F_flex=self.F_flex, F_ext=self.F_ext)
+#         self.calc_afferents()
+
 class Afferented_Limb:
+    """
+    Класс конечности с мышцами и афферентной обратной связью.
+    
+    Class of a limb with muscles and afferent feedback.
+    
+    Attributes:
+        Limb (OneDOFLimb): Механическая модель конечности.
+        Flexor (SimpleAdaptedMuscle): Модель мышцы-сгибателя.
+        Extensor (SimpleAdaptedMuscle): Модель мышцы-разгибателя.
+        Afferents (Afferents | Simple_Afferents): Модель расчета афферентных сигналов.
+        output (np.ndarray): Вектор из 6 афферентных сигналов [Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_e].
+        
+    Args:
+        Limb: Объект механической модели.
+        Flexor: Объект мышцы-сгибателя.
+        Extensor: Объект мышцы-разгибателя.
+        use_simple_afferents (bool): Если True, использует упрощенную модель афферентов.
+    """
+    
     def __init__(self, 
-                 Limb = OneDOFLimb(),
-                 Flexor = SimpleAdaptedMuscle(),
-                 Extensor = SimpleAdaptedMuscle()
+                 Limb: OneDOFLimb = None,
+                 Flexor: SimpleAdaptedMuscle = None,
+                 Extensor: SimpleAdaptedMuscle = None,
+                 use_simple_afferents: bool = False
                 ):
-        self.Afferents = Afferents()
-        self.Limb = Limb
-        self.Afferents.L_th = np.sqrt(self.Limb.a1**2+self.Limb.a2**2)
-        self.Flexor = Flexor
-        self.Extensor = Extensor
-        # Output afferent vector
-        self.output = np.zeros(6)# Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_f
-        self.F_flex = 0
-        self.F_ext = 0
+        # Инициализация компонентов с дефолтными значениями, если не переданы
+        self.Limb = Limb if Limb is not None else OneDOFLimb()
+        self.Flexor = Flexor if Flexor is not None else SimpleAdaptedMuscle()
+        self.Extensor = Extensor if Extensor is not None else SimpleAdaptedMuscle()
+        
+        # Выбор модели афферентов
+        if use_simple_afferents:
+            self.Afferents = Simple_Afferents()
+        else:
+            self.Afferents = Afferents()
+            
+        # Установка пороговой длины для афферентов на основе геометрии мышц
+        self.Afferents.L_th = np.sqrt(self.Limb.a1**2 + self.Limb.a2**2)
+        
+        # Выходной вектор афферентов: [Ia_f, II_f, Ib_f, Ia_e, II_e, Ib_e]
+        self.output = np.zeros(6)
+        
+        # Текущие силы мышц (для удобства доступа и расчета Ib)
+        self.F_flex = 0.0
+        self.F_ext = 0.0
   
     @property
-    def q(self):
+    def q(self) -> float:
+        """Угол конечности."""
         return self.Limb.q
 
     @property
-    def w(self):
+    def w(self) -> float:
+        """Угловая скорость конечности."""
         return self.Limb.w
 
     def calc_afferents(self):
-        # Limb_state
-        q = self.Limb.q # angle
-        w = self.Limb.w # rotation
-        # Calc muscles' state
-        L_flex = self.Limb.L(q)
-        v_flex = self.Limb.h(L_flex, q)*w
-        L_ext = self.Limb.L(np.pi-q)
-        v_ext = -self.Limb.h(L_ext, np.pi-q)*w
+        """
+        Расчет афферентных сигналов на основе состояния мышц и кинематики.
         
-        # Flexor afferents
+        Calculate afferent signals based on muscle state and kinematics.
+        """
+        # Кинематика
+        q = self.Limb.q      # Угол
+        w = self.Limb.w      # Угловая скорость
+        
+        # Геометрия и скорость растяжения сгибателя
+        L_flex = self.Limb.L(q)
+        v_flex = self.Limb.h(L_flex, q) * w
+        
+        # Геометрия и скорость растяжения разгибателя
+        L_ext = self.Limb.L(np.pi - q)
+        v_ext = -self.Limb.h(L_ext, np.pi - q) * w
+        
+        # --- Сгибатель (Flexor) ---
+        # Ia: первичные окончания веретен (скорость + длина)
         self.output[0] = self.Afferents.Ia(v_flex, L_flex, self.Flexor.x)
+        # II: вторичные окончания веретен (длина)
         self.output[1] = self.Afferents.II(L_flex, self.Flexor.x)
+        # Ib: сухожильные органы Гольджи (сила)
         self.output[2] = self.Afferents.Ib(self.F_flex)
         
-        #Extensor afferents
+        # --- Разгибатель (Extensor) ---
         self.output[3] = self.Afferents.Ia(v_ext, L_ext, self.Extensor.x)
         self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
         self.output[5] = self.Afferents.Ib(self.F_ext)
 
     def set_init_conditions(self, **kwargs):
+        """
+        Сброс начальных условий всех компонентов.
+        
+        Reset initial conditions for all components.
+        """
         self.Limb.set_init_conditions(**kwargs)
         self.Flexor.set_init_conditions()
         self.Extensor.set_init_conditions()
+        self.output = np.zeros(6)
+        self.F_flex = 0.0
+        self.F_ext = 0.0
 
-    def step(self, dt=0.1, uf=0, ue=0):
-        # uf - flexor input, ue - extensor input
+    def step(self, dt: float = 0.1, uf: float = 0.0, ue: float = 0.0):
+        """
+        Один шаг симуляции конечности.
+        
+        One simulation step for the limb.
+        
+        Args:
+            dt: Шаг по времени (мс).
+            uf: Входной сигнал на сгибатель (активация мотонейрона).
+            ue: Входной сигнал на разгибатель.
+        """
+        # 1. Шаг мышц (расчет концентрации кальция и силы)
         self.Flexor.step(dt=dt, u=uf)
         self.Extensor.step(dt=dt, u=ue)
+        
+        # 2. Сохранение текущих сил для расчета афферентов Ib
         self.F_flex = self.Flexor.F
         self.F_ext = self.Extensor.F
+        
+        # 3. Шаг механики (расчет нового угла и скорости под действием сил)
         self.Limb.step(dt=dt, F_flex=self.F_flex, F_ext=self.F_ext)
+        
+        # 4. Пересчет афферентных сигналов на основе нового состояния
         self.calc_afferents()
 
 class Simple_Afferented_Limb:
