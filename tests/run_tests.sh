@@ -45,6 +45,42 @@ echo "Running simulation with test config..."
 python -m SpikingNN.cli sim tests/test_config.json -o results/test_output.csv
 
 echo ""
+echo "5. Testing phase parameters via CLI..."
+echo "------------------------------------------"
+echo "Testing sine signal with phase 0.0..."
+python -m SpikingNN.cli sim tests/test_config.json --signal-type sine --amplitude 10 --frequency 1 --phase 0.0 -o results/phase_0.csv
+
+echo "Testing sine signal with phase 0.25 (90 degrees)..."
+python -m SpikingNN.cli sim tests/test_config.json --signal-type sine --amplitude 10 --frequency 1 --phase 0.25 -o results/phase_025.csv
+
+echo "Testing sine signal with phase 0.5 (180 degrees)..."
+python -m SpikingNN.cli sim tests/test_config.json --signal-type sine --amplitude 10 --frequency 1 --phase 0.5 -o results/phase_05.csv
+
+echo "Testing multi-channel: channel 0 phase=0, channel 1 phase=0.5..."
+python -m SpikingNN.cli sim tests/test_config.json --signal-type sine --amplitude 10 --frequency 1 --phase 0.0 --neurons 0 -o results/ch0_phase_0.csv
+python -m SpikingNN.cli sim tests/test_config.json --signal-type sine --amplitude 10 --frequency 1 --phase 0.5 --neurons 1 -o results/ch1_phase_05.csv
+
+echo ""
+echo "6. Verifying phase outputs are different..."
+echo "------------------------------------------"
+python -c "
+import numpy as np
+import pandas as pd
+
+# Load results
+ch0 = pd.read_csv('results/ch0_phase_0.csv')
+ch1 = pd.read_csv('results/ch1_phase_05.csv')
+
+# Extract V columns for neuron 0
+v0 = ch0['V_0'].values
+v1 = ch1['V_1'].values
+
+print(f'Channel 0 (phase=0) V range: [{v0.min():.2f}, {v0.max():.2f}]')
+print(f'Channel 1 (phase=0.5) V range: [{v1.min():.2f}, {v1.max():.2f}]')
+print(f'Signals are different: {not np.allclose(v0, v1)}')
+"
+
+echo ""
 echo "=========================================="
 echo "All tests completed successfully!"
 echo "=========================================="
