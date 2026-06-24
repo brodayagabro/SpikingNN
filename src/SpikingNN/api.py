@@ -1,3 +1,23 @@
+"""
+SpikingNN API Module
+
+This module provides a function-based API for configuring and running
+spiking neural network simulations. It supports:
+
+- JSON configuration files with validation
+- Multiple signal types (constant, sine, square, ramp, noise)
+- Phase control for periodic signals
+- Network-only (onlynet) and full neuromechanical (fullsys) systems
+- Synchronous and asynchronous execution
+
+Example:
+    >>> from SpikingNN import create_simulation, run_simulation, get_results
+    >>> sim = create_simulation("config.json")
+    >>> signals = {"type": "sine", "amplitude": 10.0, "frequency": 1.0, "phase": 0.25}
+    >>> results = run_simulation(sim, signals)
+    >>> data = get_results(results)
+"""
+
 import asyncio
 import json
 import numpy as np
@@ -6,11 +26,38 @@ from .signals import generate_signal
 from .core.Izh_net import Izhikevich_IO_Network, types2params, Afferented_Limb
 from .core.multi_limb import MultiLimbSystem
 from .core.factories import AfferentedLimbFactory
-import numpy as np
 
 
 class Simulation:
+    """
+    Represents a configured simulation.
+
+    This class encapsulates the network and optional limb components
+    for running spiking neural network simulations.
+
+    Attributes:
+        config (dict): Original configuration dictionary.
+        system_type (str): Type of system - "onlynet" or "fullsys".
+        network (Izhikevich_IO_Network): Neural network object.
+        limbs (list): List of Afferented_Limb objects (for fullsys).
+        system (MultiLimbSystem): Multi-limb system (for fullsys).
+
+    Example:
+        >>> sim = Simulation(config)
+        >>> print(f"System type: {sim.system_type}")
+        >>> print(f"Neuron count: {sim.network.N}")
+    """
+
     def __init__(self, config: dict):
+        """
+        Initialize Simulation from configuration dictionary.
+
+        Args:
+            config (dict): Configuration dictionary with network and simulation parameters.
+
+        Raises:
+            ValueError: If configuration is invalid or missing required fields.
+        """
         self.config = config
         self.system_type = config.get("system_type", "onlynet")
         self.network = None
@@ -108,10 +155,40 @@ class Simulation:
 
 
 class Results:
+    """
+    Contains simulation results.
+
+    This class wraps the simulation output data and provides
+    methods to access the results.
+
+    Attributes:
+        data (dict): Dictionary containing simulation data with keys:
+            - "time": NumPy array of time points (ms)
+            - "V": NumPy array of membrane potentials
+            - "U": NumPy array of recovery variables
+
+    Example:
+        >>> results = run_simulation(sim, signals)
+        >>> data = get_results(results)
+        >>> print(f"V shape: {data['V'].shape}")
+    """
+
     def __init__(self, data: dict):
+        """
+        Initialize Results with simulation data.
+
+        Args:
+            data (dict): Dictionary with time, V, and U arrays.
+        """
         self.data = data
 
     def get_data(self) -> dict:
+        """
+        Get the simulation data.
+
+        Returns:
+            dict: Dictionary with keys "time", "V", "U".
+        """
         return self.data
 
 

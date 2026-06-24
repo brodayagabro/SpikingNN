@@ -9,6 +9,7 @@ to configure and run a spiking neural network simulation.
 import json
 import tempfile
 import asyncio
+import numpy as np
 from SpikingNN import create_simulation, run_simulation, run_simulation_async, get_results
 
 
@@ -146,11 +147,56 @@ def test_different_signal_types():
         
         if signal_type in ["sine", "square"]:
             signals["frequency"] = 1.0
+            signals["phase"] = 0.25  # Quarter period phase shift
         
         results = run_simulation(sim, signals)
         data = get_results(results)
         
         print(f"    V range: [{data['V'].min():.2f}, {data['V'].max():.2f}]")
+
+
+def test_multi_channel_phase():
+    """Test multi-channel signals with different phases."""
+    print("\nTesting multi-channel signals with different phases...")
+    
+    config = create_demo_config()
+    with tempfile.NamedTemporaryFile(mode='w', suffix='.json', delete=False) as f:
+        json.dump(config, f)
+        config_path = f.name
+    
+    # Test with two channels having different phases
+    sim = create_simulation(config_path)
+    
+    # Channel 0: sine with phase 0
+    signals_ch0 = {
+        "type": "sine",
+        "amplitude": 10.0,
+        "frequency": 1.0,
+        "phase": 0.0,
+        "neurons": [0]
+    }
+    
+    # Channel 1: sine with phase 0.5 (180 degrees)
+    signals_ch1 = {
+        "type": "sine",
+        "amplitude": 10.0,
+        "frequency": 1.0,
+        "phase": 0.5,
+        "neurons": [1]
+    }
+    
+    # Run simulation with channel 0
+    results_ch0 = run_simulation(sim, signals_ch0)
+    data_ch0 = get_results(results_ch0)
+    
+    # Create new simulation for channel 1
+    sim2 = create_simulation(config_path)
+    results_ch1 = run_simulation(sim2, signals_ch1)
+    data_ch1 = get_results(results_ch1)
+    
+    print(f"  Channel 0 (phase=0): V range [{data_ch0['V'][:, 0].min():.2f}, {data_ch0['V'][:, 0].max():.2f}]")
+    print(f"  Channel 1 (phase=0.5): V range [{data_ch1['V'][:, 1].min():.2f}, {data_ch1['V'][:, 1].max():.2f}]")
+    print(f"  Signals are different: {not np.allclose(data_ch0['V'][:, 0], data_ch1['V'][:, 1])}")
 
 
 def main():
@@ -167,6 +213,9 @@ def main():
     
     # Test different signal types
     test_different_signal_types()
+    
+    # Test multi-channel phase
+    test_multi_channel_phase()
     
     print("\n" + "=" * 60)
     print("All tests completed successfully!")
