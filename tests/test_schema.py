@@ -9,6 +9,7 @@ from SpikingNN.schema import validate_config, ConfigurationError
 def test_valid_config():
     """Test that a valid configuration passes validation."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 10,
             "neuron_types": ["RS", "FS"],
@@ -27,6 +28,7 @@ def test_valid_config():
 def test_valid_config_with_input_current():
     """Test that a valid configuration with input_current passes validation."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5,
             "neuron_types": ["RS"] * 5
@@ -47,6 +49,7 @@ def test_valid_config_with_input_current():
 def test_invalid_config_missing_network():
     """Test that missing network section raises error."""
     config = {
+        "system_type": "onlynet",
         "simulation": {
             "dt": 0.1,
             "duration": 100.0
@@ -60,6 +63,7 @@ def test_invalid_config_missing_network():
 def test_invalid_config_missing_simulation():
     """Test that missing simulation section raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5
         }
@@ -72,6 +76,7 @@ def test_invalid_config_missing_simulation():
 def test_invalid_config_missing_neuron_count():
     """Test that missing neuron_count raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_types": ["RS"]
         },
@@ -88,6 +93,7 @@ def test_invalid_config_missing_neuron_count():
 def test_invalid_config_wrong_type_neuron_count():
     """Test that wrong type for neuron_count raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": "ten"
         },
@@ -104,6 +110,7 @@ def test_invalid_config_wrong_type_neuron_count():
 def test_invalid_config_zero_neuron_count():
     """Test that zero neuron_count raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 0
         },
@@ -120,6 +127,7 @@ def test_invalid_config_zero_neuron_count():
 def test_invalid_config_negative_dt():
     """Test that negative dt raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5
         },
@@ -136,6 +144,7 @@ def test_invalid_config_negative_dt():
 def test_invalid_config_zero_duration():
     """Test that zero duration raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5
         },
@@ -152,6 +161,7 @@ def test_invalid_config_zero_duration():
 def test_invalid_config_unknown_key():
     """Test that unknown keys raise error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5,
             "TYPO_KEY": True
@@ -169,6 +179,7 @@ def test_invalid_config_unknown_key():
 def test_invalid_config_wrong_array_shape():
     """Test that wrong array shape raises error."""
     config = {
+        "system_type": "onlynet",
         "network": {
             "neuron_count": 5,
             "connectivity": [1, 2, 3]  # Should be array of arrays
@@ -188,4 +199,4 @@ def test_invalid_config_empty():
     config = {}
     with pytest.raises(ConfigurationError) as exc_info:
         validate_config(config)
-    assert "'network' is a required property" in str(exc_info.value)
+    assert "'system_type' is a required property" in str(exc_info.value)

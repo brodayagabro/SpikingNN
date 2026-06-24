@@ -20,6 +20,7 @@ from .core.Izh_net import (
 from .core.Var_Limb import Var_Limb
 
 from .api import create_simulation, run_simulation, run_simulation_async, get_results, Simulation, Results
+from .schema import ConfigurationError, ValidationError, SimulationError
 
 __all__ = [
     "Izhikevich_Network",
@@ -34,5 +35,8 @@ __all__ = [
     "run_simulation_async",
     "get_results",
     "Simulation",
-    "Results"
+    "Results",
+    "ConfigurationError",
+    "ValidationError",
+    "SimulationError"
 ]

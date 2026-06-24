@@ -56,6 +56,11 @@ class SimulationError(Exception):
 SCHEMA = {
     "type": "object",
     "properties": {
+        "system_type": {
+            "type": "string",
+            "enum": ["onlynet", "fullsys"],
+            "description": "Type of system to simulate: 'onlynet' for network only, 'fullsys' for network with limbs"
+        },
         "network": {
             "type": "object",
             "properties": {
@@ -63,7 +68,13 @@ SCHEMA = {
                 "neuron_types": {"type": "array", "items": {"type": "string"}},
                 "connectivity": {"type": "array", "items": {"type": "array"}},
                 "weights": {"type": "array", "items": {"type": "array"}},
-                "tau_syn": {"type": "array", "items": {"type": "array"}}
+                "tau_syn": {"type": "array", "items": {"type": "array"}},
+                "input_size": {"type": "integer", "minimum": 1},
+                "output_size": {"type": "integer", "minimum": 1},
+                "afferent_size": {"type": "integer", "minimum": 0},
+                "Q_app": {"type": "array", "items": {"type": "array"}},
+                "Q_aff": {"type": "array", "items": {"type": "array"}},
+                "P": {"type": "array", "items": {"type": "array"}}
             },
             "required": ["neuron_count"],
             "additionalProperties": False
@@ -79,16 +90,76 @@ SCHEMA = {
                         "type": {"type": "string", "enum": ["constant", "sine", "square", "ramp", "noise"]},
                         "amplitude": {"type": "number"},
                         "frequency": {"type": "number", "minimum": 0},
-                        "neurons": {"type": "array", "items": {"type": "integer", "minimum": 0}}
+                        "neurons": {"type": "array", "items": {"type": "integer", "minimum": 0}},
+                        "amplitude_range": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "description": "Range [min, max] for parameter sweep"
+                        },
+                        "frequency_range": {
+                            "type": "array",
+                            "items": {"type": "number"},
+                            "minItems": 2,
+                            "maxItems": 2,
+                            "description": "Range [min, max] for parameter sweep"
+                        }
                     },
                     "required": ["type", "amplitude"]
                 }
             },
             "required": ["dt", "duration"],
             "additionalProperties": False
+        },
+        "limbs": {
+            "type": "array",
+            "items": {
+                "type": "object",
+                "properties": {
+                    "name": {"type": "string"},
+                    "mechanics": {
+                        "type": "object",
+                        "properties": {
+                            "mass": {"type": "number", "minimum": 0},
+                            "length": {"type": "number", "minimum": 0},
+                            "viscosity": {"type": "number", "minimum": 0},
+                            "q0": {"type": "number"},
+                            "w0": {"type": "number"},
+                            "tendon_a1": {"type": "number", "minimum": 0},
+                            "tendon_a2": {"type": "number", "minimum": 0}
+                        }
+                    },
+                    "flexor": {
+                        "type": "object",
+                        "properties": {
+                            "w": {"type": "number", "minimum": 0},
+                            "N": {"type": "integer", "minimum": 1},
+                            "A": {"type": "number", "minimum": 0},
+                            "tau_c": {"type": "number", "minimum": 0},
+                            "tau_1": {"type": "number", "minimum": 0}
+                        }
+                    },
+                    "extensor": {
+                        "type": "object",
+                        "properties": {
+                            "w": {"type": "number", "minimum": 0},
+                            "N": {"type": "integer", "minimum": 1},
+                            "A": {"type": "number", "minimum": 0},
+                            "tau_c": {"type": "number", "minimum": 0},
+                            "tau_1": {"type": "number", "minimum": 0}
+                        }
+                    }
+                }
+            }
+        },
+        "output_files": {
+            "type": "array",
+            "items": {"type": "string"},
+            "description": "List of output file paths to save results (CSV format)"
         }
     },
-    "required": ["network", "simulation"],
+    "required": ["system_type", "network", "simulation"],
     "additionalProperties": False
 }
 

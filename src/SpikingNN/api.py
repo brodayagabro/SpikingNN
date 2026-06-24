@@ -3,17 +3,22 @@ import json
 import numpy as np
 from .schema import validate_config, ConfigurationError, ValidationError, SimulationError
 from .signals import generate_signal
-from .core.Izh_net import Izhikevich_IO_Network, types2params
+from .core.Izh_net import Izhikevich_IO_Network, types2params, Afferented_Limb
+from .core.multi_limb import MultiLimbSystem
+from .core.factories import AfferentedLimbFactory
 import numpy as np
 
 
 class Simulation:
     def __init__(self, config: dict):
         self.config = config
+        self.system_type = config.get("system_type", "onlynet")
         self.network = None
-        self._setup_network()
+        self.limbs = []
+        self.system = None
+        self._setup_system()
 
-    def _setup_network(self):
+    def _setup_system(self):
         net_config = self.config["network"]
         N = net_config["neuron_count"]
         
@@ -21,7 +26,8 @@ class Simulation:
         net_kwargs = {
             'N': N,
             'input_size': net_config.get("input_size", N),
-            'output_size': net_config.get("output_size", N)
+            'output_size': net_config.get("output_size", N),
+            'afferent_size': net_config.get("afferent_size", 0)
         }
         
         # Set neuron types if provided
@@ -65,7 +71,40 @@ class Simulation:
                         tau[i, j] = val
             net_kwargs['tau_syn'] = tau
         
+        # Set Q_app if provided
+        Q_app = net_config.get("Q_app")
+        if Q_app:
+            net_kwargs['Q_app'] = np.array(Q_app)
+        
+        # Set Q_aff if provided
+        Q_aff = net_config.get("Q_aff")
+        if Q_aff:
+            net_kwargs['Q_aff'] = np.array(Q_aff)
+        
+        # Set P if provided
+        P = net_config.get("P")
+        if P:
+            net_kwargs['P'] = np.array(P)
+        
+        # Create network
         self.network = Izhikevich_IO_Network(**net_kwargs)
+        
+        # Create limbs if fullsys
+        if self.system_type == "fullsys":
+            limbs_config = self.config.get("limbs", [])
+            for limb_config in limbs_config:
+                limb = AfferentedLimbFactory.create_from_dict(limb_config)
+                self.limbs.append(limb)
+            
+            # Create MultiLimbSystem
+            if self.limbs:
+                limb_names = [limb_config.get("name", f"limb_{i}") 
+                             for i, limb_config in enumerate(limbs_config)]
+                self.system = MultiLimbSystem(
+                    network=self.network,
+                    limbs=self.limbs,
+                    names=limb_names
+                )
 
 
 class Results:
@@ -113,7 +152,9 @@ def run_simulation(simulation: Simulation, signals: dict) -> Results:
                 "type": "constant",  # Signal type (required)
                 "amplitude": 10.0,   # Signal amplitude in nA (required)
                 "frequency": 1.0,    # Frequency in Hz (for periodic signals)
-                "neurons": [0, 1]    # Neuron indices to apply signal (optional)
+                "neurons": [0, 1],   # Neuron indices to apply signal (optional)
+                "amplitude_range": [min, max],  # Range for parameter sweep (optional)
+                "frequency_range": [min, max]   # Range for parameter sweep (optional)
             }
             
     Returns:
@@ -152,22 +193,47 @@ def run_simulation(simulation: Simulation, signals: dict) -> Results:
             for idx in neuron_indices:
                 if idx < 0 or idx >= input_size:
                     raise ValidationError(f"Neuron index {idx} is out of range [0, {input_size-1}]", field="neurons")
+            
+            # Validate parameter ranges
+            amplitude_range = signals.get("amplitude_range")
+            if amplitude_range:
+                if len(amplitude_range) != 2 or amplitude_range[0] > amplitude_range[1]:
+                    raise ValidationError("amplitude_range must be [min, max] with min <= max", field="amplitude_range")
+            
+            frequency_range = signals.get("frequency_range")
+            if frequency_range:
+                if len(frequency_range) != 2 or frequency_range[0] > frequency_range[1]:
+                    raise ValidationError("frequency_range must be [min, max] with min <= max", field="frequency_range")
 
     try:
         for i in range(len(t)):
-            v = simulation.network.V_prev.copy()
-            u = simulation.network.U_prev.copy()
+            # Store current state
+            if simulation.system_type == "fullsys" and simulation.system:
+                # For fullsys, store limb states
+                state = simulation.system.get_state()
+                v = state["neurons_V"]
+                u = state["neurons_U"]
+            else:
+                # For onlynet, store network states
+                v = simulation.network.V_prev.copy()
+                u = simulation.network.U_prev.copy()
             
             # Ensure V_prev and U_prev are 1D arrays of length N
-            if v.ndim == 0:
-                v = np.full(N, v.item())
-            elif v.shape != (N,):
-                v = v.flatten()[:N]
+            if isinstance(v, np.ndarray):
+                if v.ndim == 0:
+                    v = np.full(N, v.item())
+                elif v.shape != (N,):
+                    v = v.flatten()[:N]
+            else:
+                v = np.array(v)
             
-            if u.ndim == 0:
-                u = np.full(N, u.item())
-            elif u.shape != (N,):
-                u = u.flatten()[:N]
+            if isinstance(u, np.ndarray):
+                if u.ndim == 0:
+                    u = np.full(N, u.item())
+                elif u.shape != (N,):
+                    u = u.flatten()[:N]
+            else:
+                u = np.array(u)
             
             results["V"].append(v)
             results["U"].append(u)
@@ -193,7 +259,14 @@ def run_simulation(simulation: Simulation, signals: dict) -> Results:
                         if neuron_idx < input_size:
                             Iapp[neuron_idx] = signal_value
             
-            simulation.network.step(dt=dt, Iapp=Iapp)
+                # Step the system
+                if simulation.system_type == "fullsys" and simulation.system:
+                    simulation.system.step(dt=dt, Iapp=Iapp)
+                else:
+                    # For IO_Network, Iaff must be a vector of length afferent_size
+                    afferent_size = simulation.network.afferent_size
+                    Iaff = np.zeros(afferent_size)
+                    simulation.network.step(dt=dt, Iapp=Iapp, Iaff=Iaff)
     except Exception as e:
         raise SimulationError(f"Simulation failed at timestep {i}: {e}", timestep=i)
 
