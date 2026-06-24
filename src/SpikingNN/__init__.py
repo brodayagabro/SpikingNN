@@ -19,7 +19,7 @@ from .core.Izh_net import (
 
 from .core.Var_Limb import Var_Limb
 
-from .api import create_simulation, run_simulation, get_results
+from .api import create_simulation, run_simulation, run_simulation_async, get_results, Simulation, Results
 
 __all__ = [
     "Izhikevich_Network",
@@ -31,5 +31,8 @@ __all__ = [
     "Var_Limb",
     "create_simulation",
     "run_simulation",
-    "get_results"
+    "run_simulation_async",
+    "get_results",
+    "Simulation",
+    "Results"
 ]
