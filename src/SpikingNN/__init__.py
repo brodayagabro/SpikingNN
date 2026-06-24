@@ -19,6 +19,8 @@ from .core.Izh_net import (
 
 from .core.Var_Limb import Var_Limb
 
+from .api import create_simulation, run_simulation, get_results
+
 __all__ = [
     "Izhikevich_Network",
     "Izhikevich_IO_Network",
@@ -26,5 +28,8 @@ __all__ = [
     "NameNetwork",
     "types2params",
     "izhikevich_neuron",
-    "Var_Limb"
+    "Var_Limb",
+    "create_simulation",
+    "run_simulation",
+    "get_results"
 ]

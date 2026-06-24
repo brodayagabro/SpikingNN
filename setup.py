@@ -27,6 +27,7 @@ setup(
         'networkx>=3.0',
         'matplotlib>=3.4.0',
         'requests>=2.25.1',
+        'jsonschema>=4.0.0',
     ],
     
     # ✅ ENTRY POINTS ДЛЯ КОМАНДНОЙ СТРОКИ
