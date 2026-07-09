@@ -88,7 +88,7 @@ SCHEMA = {
                     "type": "object",
                     "properties": {
                         "type": {"type": "string", "enum": ["constant", "sine", "square", "ramp", "noise"]},
-                        "amplitude": {"type": "number"},
+                        "amplitudes": {"type": "array", "items": {"type": "number"}},
                         "frequency": {"type": "number", "minimum": 0},
                         "neurons": {"type": "array", "items": {"type": "integer", "minimum": 0}},
                         "amplitude_range": {
