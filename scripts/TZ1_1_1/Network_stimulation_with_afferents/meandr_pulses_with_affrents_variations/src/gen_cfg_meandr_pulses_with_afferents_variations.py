@@ -64,9 +64,9 @@ def gen_meandrs_pulses_cfg():
     # variation params
     WEIGHT_VARIATION = [0.001, 0.5, 1]
     AMPLITUDE_RANGE = np.array([0])  # np.linspace(1, 40, 5)
-    PERIOD_RANGE = np.linspace(1, 1000, 1)
-    DURATION_RANGE = np.linspace(0, 400, 1)
-    PHASE_RANGE = np.linspace(0, np.pi, 1)
+    PERIOD_RANGE = np.linspace(1, 1000, 4)
+    DURATION_RANGE = np.linspace(0, 400, 5)
+    PHASE_RANGE = np.linspace(0, np.pi, 7)
     # Фиксированные параметры
     NOISE_PERCENT = 0.05
     BASE_CURRENTS = [0, 0, 0, 0]  # Базовые токи для каждого канала

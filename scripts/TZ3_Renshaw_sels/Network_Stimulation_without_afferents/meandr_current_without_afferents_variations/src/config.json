@@ -1,0 +1,21 @@
+{
+  "archive_name": "data_meandr_pulses_without_afferents_rainshow_weights",
+  "output_filename": "cfg.csv",
+  "base_weight": 0.5,
+  "renshaw_weights": {
+    "min": 0.0,
+    "max": 1.0,
+    "step": 0.25
+  },
+  "meander": {
+    "period": {"min": 300, "max": 300, "num": 1},
+    "duration_flex": {"min": 100, "max": 100, "num": 1},
+    "duration_ext": {"min": 100, "max": 100, "num": 1},
+    "amplitude_cpg_in": {"min": 5.0, "max": 5.0, "num": 1},
+    "amplitude_cpg_n": {"min": 6.5, "max": 6.5, "num": 1},
+    "phase_flex": {"min": 0.1, "max": 0.1, "num": 1},
+    "phase_ext": {"min": 0.6, "max": 0.6, "num": 1}
+  },
+  "base_currents": [0, 0, 0, 0],
+  "noise_percent": 0.05
+}

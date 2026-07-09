@@ -23,7 +23,7 @@ python -m pytest tests/test_schema.py tests/test_signals.py tests/test_api.py -v
 echo ""
 echo "2. Running API demo script..."
 echo "------------------------------------------"
-python test_api_demo.py
+python tests/test_api_demo.py
 
 echo ""
 echo "3. Testing CLI command..."

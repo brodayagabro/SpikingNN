@@ -48,8 +48,8 @@ pair_names = [
 ]
 
 # Параметры варьирования
-VARIATION_RANGE = np.arange(0, 20, 10)  # [0, 10]
-WEIGHT_VARIATION = [0.001, 0.5, 5]
+VARIATION_RANGE = np.arange(0, 20, 0.5)  # [0, 10]
+WEIGHT_VARIATION = [0.001, 0.5, 1]
 NOISE_PERCENT = 0.05
 
 # Генерация комбинаций весов для каждой пары

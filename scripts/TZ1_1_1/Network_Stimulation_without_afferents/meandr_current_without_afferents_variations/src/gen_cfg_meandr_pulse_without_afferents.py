@@ -49,9 +49,9 @@ pair_names = [
 
 # Параметры варьирования
 WEIGHT_VARIATION = [0.001, 0.5, 1]
-PERIOD_RANGE = np.linspace(1, 1000, 1)
-DURATION_RANGE = np.linspace(0, 400, 1)
-PHASE_RANGE = np.linspace(0, 1, 1)
+PERIOD_RANGE = np.linspace(1, 1000, 5)
+DURATION_RANGE = np.linspace(0, 400, 5)
+PHASE_RANGE = np.linspace(0, 1, 7)
 BASE_CURRENTS = [0, 0, 0, 0]
 NOISE_PERCENT = 0.05
 

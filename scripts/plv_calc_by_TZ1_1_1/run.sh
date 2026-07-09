@@ -1,0 +1,1 @@
+python src/infer_histgb_softgate_from_muscle_csv.py -i "./experiment_results_const_current_var_without_afferents.csv" -m "./data_const_without/data" -o "./New_experiment_results_const_current_without_afferents.csv" -j 42

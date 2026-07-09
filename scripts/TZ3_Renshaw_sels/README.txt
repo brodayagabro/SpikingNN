@@ -101,4 +101,22 @@
 Доминирующая частота (спектр): >5 Гц может указывать на кластерный режим или высокочастотные компоненты.
 
 
+Как запускать:
+1) Создаем вирутальное окружение:
+    python3 -m venv myenv
+    &
+    conda create -n my env
 
+2) Активируем окружение:
+    source myenv/bin/activate
+    &
+    conda activate myenv
+
+3) Клонируем рупезиторий с библиотекой:
+    git clone https://github.com/brodayagabro/SpikingNN.git
+    cd SpikingNN
+    pip install .
+
+После установки необходимых пакетов можно производить запуски
+    python gen_cfg_*.py
+    pyhton calc_*.py

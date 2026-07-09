@@ -1,0 +1,30 @@
+{
+  "setting": "anti_phase vs not_anti_phase",
+  "auc": 0.7658507135488248,
+  "alpha": 0.009214178446903865,
+  "components": [
+    "plv",
+    "amp",
+    "phase180_hilbert",
+    "phase180_peaks",
+    "corr_antiphase",
+    "peakcount_similarity"
+  ],
+  "weights": {
+    "plv": 0.21938412210713223,
+    "amp": 0.48519435126359994,
+    "phase180_hilbert": 0.2424109787099162,
+    "phase180_peaks": 0.010535710739819343,
+    "corr_antiphase": 0.03163411494123989,
+    "peakcount_similarity": 0.010840722238292433
+  },
+  "gate": "g = exp(-alpha * max(0, peaks-2)), peaks=max(env_peaks_flex, env_peaks_ext)",
+  "search": {
+    "weights_samples": 120000,
+    "alpha_range": [
+      0.0,
+      3.0
+    ],
+    "seed": 42
+  }
+}

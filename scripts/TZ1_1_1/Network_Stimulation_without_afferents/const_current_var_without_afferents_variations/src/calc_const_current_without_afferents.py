@@ -244,7 +244,7 @@ def main():
 
     selected_params_list = [row.to_dict() for _, row in df.iterrows()]
     
-    n_jobs = 8
+    n_jobs = 32
     
     # Настройка параллельного выполнения
     results = Parallel(n_jobs=n_jobs, verbose=4)(

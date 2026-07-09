@@ -1,6 +1,6 @@
 import numpy as np
-from SpikingNN.Izh_net import *
-from SpikingNN.Var_Limb import *
+from SpikingNN.core.Izh_net import *
+from SpikingNN.core.Var_Limb import *
 from Rybak2002 import *
 from tqdm import tqdm as pbar
 import os
@@ -262,7 +262,7 @@ def main():
 
     selected_params_list = [row.to_dict() for _, row in df.iterrows()]
     
-    n_jobs = -1
+    n_jobs = 20
     
     # Настройка параллельного выполнения
     results = Parallel(n_jobs=n_jobs, verbose=0)(

@@ -62,7 +62,7 @@ connections_weights = {
 def gen_constant_current_cfg():
     # general arrays
     # variation of current value 
-    VARIATION_RANGE = np.arange(0, 20, 5)
+    VARIATION_RANGE = np.arange(0, 20, 0.3)
     # variation of weight
     WEIGHT_VARIATION = np.array([0.001, 0.5, 1])
     # noise
