@@ -18,7 +18,6 @@ setup(
     package_dir={'': 'src'},
     packages=find_packages(where='src'),
     
-    # ✅ ОБНОВЛЁННЫЕ ЗАВИСИМОСТИ
     install_requires=[
         'streamlit>=1.32.0',
         'numpy>=1.20.0',
@@ -28,23 +27,22 @@ setup(
         'matplotlib>=3.4.0',
         'requests>=2.25.1',
         'jsonschema>=4.0.0',
+        'tqdm>=4.60.0',
     ],
     
-    # ✅ ENTRY POINTS ДЛЯ КОМАНДНОЙ СТРОКИ
     entry_points={
         'console_scripts': [
             'spikingnn=SpikingNN.cli:main',
             'spknn=SpikingNN.cli:main',  # Короткая версия
         ],
     },
+
     
-    # ✅ ВКЛЮЧЕНИЕ ДОПОЛНИТЕЛЬНЫХ ФАЙЛОВ
     package_data={
         'SpikingNN': ['*.py', '*.md', '*.txt'],
     },
     include_package_data=True,
     
-    # ✅ ОБНОВЛЁННЫЕ CLASSIFIERS
     classifiers=[
         'Development Status :: 4 - Beta',
         'Intended Audience :: Science/Research',
