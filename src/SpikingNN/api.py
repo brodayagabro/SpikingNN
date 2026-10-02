@@ -19,11 +19,13 @@ Example:
 """
 
 import asyncio
+from copy import deepcopy
 import json
+from numbers import Integral, Real
 import numpy as np
 from .schema import validate_config, ConfigurationError, ValidationError, SimulationError
 from .signals import generate_signal
-from .core.Izh_net import Izhikevich_IO_Network, types2params, Afferented_Limb
+from .core.Izh_net import Izhikevich_IO_Network, types2params
 from .core.multi_limb import MultiLimbSystem
 from .core.factories import AfferentedLimbFactory
 
@@ -56,9 +58,10 @@ class Simulation:
             config (dict): Configuration dictionary with network and simulation parameters.
 
         Raises:
-            ValueError: If configuration is invalid or missing required fields.
+            ConfigurationError: If configuration is invalid or missing required fields.
         """
-        self.config = config
+        validate_config(config)
+        self.config = deepcopy(config)
         self.system_type = config.get("system_type", "onlynet")
         self.network = None
         self.limbs = []
@@ -166,6 +169,7 @@ class Results:
             - "time": NumPy array of time points (ms)
             - "V": NumPy array of membrane potentials
             - "U": NumPy array of recovery variables
+            - "limbs": Named histories of mechanics and afferents (fullsys only)
 
     Example:
         >>> results = run_simulation(sim, signals)
@@ -187,7 +191,7 @@ class Results:
         Get the simulation data.
 
         Returns:
-            dict: Dictionary with keys "time", "V", "U".
+            dict: Dictionary with time, V, U and optional named limb histories.
         """
         return self.data
 
@@ -214,147 +218,122 @@ def create_simulation(config_path: str) -> Simulation:
     except json.JSONDecodeError as e:
         raise ConfigurationError(f"Invalid JSON in configuration file: {e}")
     
-    validate_config(config)
     return Simulation(config)
 
 
-def run_simulation(simulation: Simulation, signals: dict) -> Results:
-    """
-    Run a simulation with the given signals.
-    
-    Args:
-        simulation: Simulation object created by create_simulation()
-        signals: Dictionary of signal parameters with the following format:
-            {
-                "type": "constant",  # Signal type (required)
-                "amplitude": 10.0,   # Signal amplitude in nA (required)
-                "frequency": 1.0,    # Frequency in Hz (for periodic signals)
-                "neurons": [0, 1],   # Neuron indices to apply signal (optional)
-                "amplitude_range": [min, max],  # Range for parameter sweep (optional)
-                "frequency_range": [min, max]   # Range for parameter sweep (optional)
-            }
-            
-    Returns:
-        Results object containing simulation data
-        
-    Raises:
-        ValidationError: If signal parameters are invalid
-        SimulationError: If simulation encounters a runtime error
+def _prepare_signal(signals: dict, input_size: int, duration: float, dt: float):
+    """Validate input before stepping and generate one complete time series."""
+    if not isinstance(signals, dict):
+        raise ValidationError("Signals must be a dictionary", field="signals")
+    if not signals:
+        return None, []
+
+    signal_type = signals.get("type")
+    if signal_type not in ("constant", "sine", "square", "ramp", "noise"):
+        raise ValidationError("A supported signal type is required", field="type")
+
+    for field, default in (("amplitude", None), ("frequency", 1.0), ("phase", 0.0)):
+        value = signals.get(field, default)
+        if isinstance(value, bool) or not isinstance(value, Real) or not np.isfinite(value):
+            raise ValidationError(f"{field} must be a finite number", field=field)
+    if signals.get("frequency", 1.0) < 0:
+        raise ValidationError("frequency must be non-negative", field="frequency")
+    if signal_type == "noise" and signals["amplitude"] < 0:
+        raise ValidationError("Noise amplitude must be non-negative", field="amplitude")
+
+    indices = signals.get("neurons", list(range(input_size)))
+    if isinstance(indices, Integral) and not isinstance(indices, bool):
+        indices = [indices]
+    if not isinstance(indices, (list, tuple, np.ndarray)):
+        raise ValidationError("neurons must contain input channel indices", field="neurons")
+    if isinstance(indices, np.ndarray) and indices.ndim != 1:
+        raise ValidationError("neurons must be one-dimensional", field="neurons")
+    for idx in indices:
+        if isinstance(idx, bool) or not isinstance(idx, Integral) or not 0 <= idx < input_size:
+            raise ValidationError(f"Input channel index {idx} is out of range [0, {input_size - 1}]", field="neurons")
+
+    for field in ("amplitude_range", "frequency_range", "phase_range"):
+        if field not in signals:
+            continue
+        bounds = signals[field]
+        if (not isinstance(bounds, (list, tuple)) or len(bounds) != 2
+                or any(isinstance(value, bool) or not isinstance(value, Real)
+                       or not np.isfinite(value) for value in bounds)
+                or bounds[0] > bounds[1]):
+            raise ValidationError(f"{field} must be finite [min, max] with min <= max", field=field)
+
+    return generate_signal(signals, duration=duration, dt=dt), list(indices)
+
+
+def run_simulation(simulation: Simulation, signals: dict = None) -> Results:
+    """Run from the current state, recording each state before its time step.
+
+    With signals=None, use simulation.input_current from the configuration.
+    An explicit empty dictionary selects zero external current. The historical
+    'neurons' field selects input channels, which Q_app maps to actual neurons.
+    Repeated calls continue the current state with a local time axis starting
+    at zero; create a new Simulation to repeat the initial conditions.
+
+    Returns time, V, U and, for fullsys, a 'limbs' dictionary of named histories
+    (angle_q, angular_velocity_w, force_flex, force_ext and afferents).
     """
     sim_config = simulation.config["simulation"]
     dt = sim_config["dt"]
     duration = sim_config["duration"]
     t = np.arange(0, duration, dt)
+    net = simulation.network
+    signal_params = sim_config.get("input_current", {}) if signals is None else signals
+    signal, indices = _prepare_signal(signal_params, net.input_size, duration, dt)
 
-    results = {"time": t, "V": [], "U": []}
+    results = {
+        "time": t,
+        "V": np.empty((len(t), net.N)),
+        "U": np.empty((len(t), net.N)),
+    }
+    system = simulation.system
+    if system is not None:
+        results["limbs"] = {
+            name: {
+                "angle_q": np.empty(len(t)),
+                "angular_velocity_w": np.empty(len(t)),
+                "force_flex": np.empty(len(t)),
+                "force_ext": np.empty(len(t)),
+                "afferents": np.empty((len(t), 6)),
+            }
+            for name in system.limb_names
+        }
 
-    N = simulation.network.N
-    input_size = simulation.network.input_size
-    
-    # Validate signal parameters if provided
-    if signals:
-        signal_type = signals.get("type")
-        amplitude = signals.get("amplitude")
-        
-        if signal_type and amplitude is None:
-            raise ValidationError("Signal amplitude is required when signal type is specified", field="amplitude")
-        if amplitude is not None and signal_type is None:
-            raise ValidationError("Signal type is required when amplitude is specified", field="type")
-        
-        if signal_type and amplitude is not None:
-            # Validate neuron indices
-            neuron_indices = signals.get("neurons", list(range(input_size)))
-            if isinstance(neuron_indices, int):
-                neuron_indices = [neuron_indices]
-            
-            for idx in neuron_indices:
-                if idx < 0 or idx >= input_size:
-                    raise ValidationError(f"Neuron index {idx} is out of range [0, {input_size-1}]", field="neurons")
-            
-            # Validate parameter ranges
-            amplitude_range = signals.get("amplitude_range")
-            if amplitude_range:
-                if len(amplitude_range) != 2 or amplitude_range[0] > amplitude_range[1]:
-                    raise ValidationError("amplitude_range must be [min, max] with min <= max", field="amplitude_range")
-            
-            frequency_range = signals.get("frequency_range")
-            if frequency_range:
-                if len(frequency_range) != 2 or frequency_range[0] > frequency_range[1]:
-                    raise ValidationError("frequency_range must be [min, max] with min <= max", field="frequency_range")
+    Iapp = np.zeros(net.input_size)
+    Iaff = np.zeros(net.afferent_size)
+    for i in range(len(t)):
+        try:
+            results["V"][i] = net.V_prev
+            results["U"][i] = net.U_prev
+            if system is not None:
+                for name, limb in zip(system.limb_names, system.limbs):
+                    history = results["limbs"][name]
+                    history["angle_q"][i] = limb.q
+                    history["angular_velocity_w"][i] = limb.w
+                    history["force_flex"][i] = limb.F_flex
+                    history["force_ext"][i] = limb.F_ext
+                    history["afferents"][i] = limb.output
 
-    try:
-        for i in range(len(t)):
-            # Store current state
-            if simulation.system_type == "fullsys" and simulation.system:
-                # For fullsys, store limb states
-                state = simulation.system.get_state()
-                v = state["neurons_V"]
-                u = state["neurons_U"]
+            if signal is not None:
+                Iapp[indices] = signal[i]
+            if system is not None:
+                system.step(dt=dt, Iapp=Iapp)
             else:
-                # For onlynet, store network states
-                v = simulation.network.V_prev.copy()
-                u = simulation.network.U_prev.copy()
-            
-            # Ensure V_prev and U_prev are 1D arrays of length N
-            if isinstance(v, np.ndarray):
-                if v.ndim == 0:
-                    v = np.full(N, v.item())
-                elif v.shape != (N,):
-                    v = v.flatten()[:N]
-            else:
-                v = np.array(v)
-            
-            if isinstance(u, np.ndarray):
-                if u.ndim == 0:
-                    u = np.full(N, u.item())
-                elif u.shape != (N,):
-                    u = u.flatten()[:N]
-            else:
-                u = np.array(u)
-            
-            results["V"].append(v)
-            results["U"].append(u)
-            
-            # For IO_Network, Iapp must be a vector of length input_size
-            Iapp = np.zeros(input_size)
-            
-            # Apply signal to specified neurons at current timestep
-            if signals:
-                signal_type = signals.get("type")
-                amplitude = signals.get("amplitude")
-                
-                if signal_type and amplitude is not None:
-                    neuron_indices = signals.get("neurons", list(range(input_size)))
-                    if isinstance(neuron_indices, int):
-                        neuron_indices = [neuron_indices]
-                    
-                    # Get signal value at current time
-                    signal = generate_signal(signals, duration=duration, dt=dt)
-                    signal_value = signal[i] if i < len(signal) else 0.0
-                    
-                    for neuron_idx in neuron_indices:
-                        if neuron_idx < input_size:
-                            Iapp[neuron_idx] = signal_value
-            
-                # Step the system
-                if simulation.system_type == "fullsys" and simulation.system:
-                    simulation.system.step(dt=dt, Iapp=Iapp)
-                else:
-                    # For IO_Network, Iaff must be a vector of length afferent_size
-                    afferent_size = simulation.network.afferent_size
-                    Iaff = np.zeros(afferent_size)
-                    simulation.network.step(dt=dt, Iapp=Iapp, Iaff=Iaff)
-    except Exception as e:
-        raise SimulationError(f"Simulation failed at timestep {i}: {e}", timestep=i)
-
-    results["V"] = np.array(results["V"])
-    results["U"] = np.array(results["U"])
+                net.step(dt=dt, Iapp=Iapp, Iaff=Iaff)
+        except Exception as exc:
+            raise SimulationError(f"Simulation failed at timestep {i}: {exc}", timestep=i) from exc
 
     return Results(results)
 
 
-async def run_simulation_async(simulation: Simulation, signals: dict) -> Results:
-    return await asyncio.to_thread(run_simulation, simulation, signals)
+async def run_simulation_async(simulation: Simulation, signals: dict = None) -> Results:
+    # run_in_executor keeps compatibility with the declared Python 3.8 minimum.
+    loop = asyncio.get_running_loop()
+    return await loop.run_in_executor(None, run_simulation, simulation, signals)
 
 
 def get_results(results: Results) -> dict:

@@ -25,6 +25,13 @@ With devmode:
 pip install -e .
 ```
 
+Install test dependencies and run the suite:
+
+```bash
+pip install -e '.[test]'
+python -m pytest tests -q
+```
+
 ## Command Line Interface (CLI)
 
 SpikingNN provides a command-line interface for running simulations and launching the GUI.
@@ -106,6 +113,12 @@ print(f"Time steps: {len(data['time'])}")
 print(f"Membrane potentials shape: {data['V'].shape}")
 print(f"Recovery variables shape: {data['U'].shape}")
 ```
+
+`run_simulation(sim)` uses `simulation.input_current` from the configuration;
+`run_simulation(sim, {})` advances with zero external current. Repeated calls
+continue the current state; construct a new simulation for an independent run.
+For `fullsys`, `data['limbs'][name]` also contains histories of angle, angular
+velocity, muscle forces and all six afferent channels. See [API documentation](docs/api/README.md).
 
 ### Async API
 

@@ -7,6 +7,7 @@ from SpikingNN.api import create_simulation, run_simulation_async, get_results
 @pytest.mark.asyncio
 async def test_run_simulation_async():
     config = {
+        "system_type": "onlynet",
         "network": {"neuron_count": 5, "neuron_types": ["RS"]*5},
         "simulation": {"dt": 0.1, "duration": 10.0}
     }
@@ -18,3 +19,4 @@ async def test_run_simulation_async():
     assert "V" in data
     assert "U" in data
     assert data["V"].shape == (100, 5)
+    assert not (data["V"][0] == data["V"][-1]).all()

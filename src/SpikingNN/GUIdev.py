@@ -26,7 +26,7 @@ from matplotlib.backends.backend_qt5agg import FigureCanvasQTAgg as FigureCanvas
 from matplotlib.backends.backend_qt5agg import NavigationToolbar2QT as NavigationToolbar
 
 # Import from Izh_net
-from Izh_net import (
+from SpikingNN.core.Izh_net import (
     Izhikevich_Network,
     Izhikevich_IO_Network,
     Network,

@@ -10,6 +10,7 @@ import subprocess
 import os
 import json
 import argparse
+import numpy as np
 from pathlib import Path
 
 def get_app_path():
@@ -32,15 +33,25 @@ def run_simulation_cli(args):
         sys.exit(1)
     
     # Загрузка параметров сигналов из аргументов командной строки
-    signals = {}
+    overrides = {}
     if args.signal_type:
-        signals["type"] = args.signal_type
+        overrides["type"] = args.signal_type
     if args.amplitude is not None:
-        signals["amplitude"] = args.amplitude
+        overrides["amplitude"] = args.amplitude
     if args.frequency is not None:
-        signals["frequency"] = args.frequency
+        overrides["frequency"] = args.frequency
+    if args.phase is not None:
+        overrides["phase"] = args.phase
     if args.neurons:
-        signals["neurons"] = [int(n) for n in args.neurons.split(",")]
+        try:
+            overrides["neurons"] = [int(n) for n in args.neurons.split(",")]
+        except ValueError:
+            print("❌ Ошибка: --neurons должен содержать индексы через запятую")
+            sys.exit(1)
+    signals = None
+    if overrides:
+        signals = dict(config.get("simulation", {}).get("input_current", {}))
+        signals.update(overrides)
     
     # Создание симуляции
     try:
@@ -79,19 +90,29 @@ def run_simulation_cli(args):
                     
                     # Объединяем все данные
                     df = pd.concat([df_time, df_v, df_u], axis=1)
+                    for name, history in data.get("limbs", {}).items():
+                        for field, values in history.items():
+                            prefix = f"limb_{name}_{field}"
+                            if values.ndim == 1:
+                                df[prefix] = values
+                            else:
+                                for channel in range(values.shape[1]):
+                                    df[f"{prefix}_{channel}"] = values[:, channel]
                     df.to_csv(output_file, index=False)
                     print(f"💾 Результаты сохранены в {output_file}")
                 elif output_file.endswith('.npz'):
                     # Сохранение в NumPy format
-                    np.savez(output_file, 
-                            time=data["time"], 
-                            V=data["V"], 
-                            U=data["U"])
+                    arrays = {key: data[key] for key in ("time", "V", "U")}
+                    for name, history in data.get("limbs", {}).items():
+                        for field, values in history.items():
+                            arrays[f"limb_{name}_{field}"] = values
+                    np.savez(output_file, **arrays)
                     print(f"💾 Результаты сохранены в {output_file}")
                 else:
                     print(f"⚠️  Неизвестный формат файла: {output_file}")
             except Exception as e:
                 print(f"❌ Ошибка сохранения в {output_file}: {e}")
+                sys.exit(1)
     
     return data
 
@@ -171,9 +192,14 @@ def main():
         help="Частота сигнала (Hz) для периодических сигналов"
     )
     sim_parser.add_argument(
+        "--phase",
+        type=float,
+        help="Сдвиг фазы: доля периода от 0 до 1, иначе радианы"
+    )
+    sim_parser.add_argument(
         "--neurons",
         type=str,
-        help="Индексы нейронов через запятую (например: 0,1,2)"
+        help="Индексы входных каналов Q_app через запятую (например: 0,1,2)"
     )
     
     # Общие аргументы

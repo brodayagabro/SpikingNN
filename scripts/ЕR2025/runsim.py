@@ -1,8 +1,8 @@
 import numpy as np
 import pandas as pd
 import os
-from SpikingNN.Izh_net import OneDOFLimb 
-from SpikingNN.Izh_net import SimpleAdaptedMuscle
+from SpikingNN.core.Izh_net import OneDOFLimb
+from SpikingNN.core.Izh_net import SimpleAdaptedMuscle
 from joblib import Parallel, delayed
 import matplotlib.pyplot as plt
 from matplotlib import rcParams

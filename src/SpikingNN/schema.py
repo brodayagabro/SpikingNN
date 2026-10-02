@@ -88,8 +88,9 @@ SCHEMA = {
                     "type": "object",
                     "properties": {
                         "type": {"type": "string", "enum": ["constant", "sine", "square", "ramp", "noise"]},
-                        "amplitudes": {"type": "array", "items": {"type": "number"}},
+                        "amplitude": {"type": "number"},
                         "frequency": {"type": "number", "minimum": 0},
+                        "phase": {"type": "number"},
                         "neurons": {"type": "array", "items": {"type": "integer", "minimum": 0}},
                         "amplitude_range": {
                             "type": "array",
@@ -181,4 +182,17 @@ def validate_config(config: dict) -> None:
             message=f"Invalid configuration: {e.message}",
             path=e.absolute_path,
             schema_path=e.absolute_schema_path
-        )
+        ) from e
+
+    if config["system_type"] == "fullsys":
+        limbs = config.get("limbs", [])
+        if not limbs:
+            raise ConfigurationError("fullsys requires at least one limb", path=("limbs",))
+        seen = set()
+        for i, limb in enumerate(limbs):
+            name = limb.get("name", f"limb_{i}")
+            if name in seen:
+                raise ConfigurationError(
+                    f"Duplicate limb name: {name}", path=("limbs", i, "name")
+                )
+            seen.add(name)

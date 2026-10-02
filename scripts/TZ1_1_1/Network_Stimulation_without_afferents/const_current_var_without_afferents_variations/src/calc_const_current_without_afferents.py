@@ -1,7 +1,7 @@
 import numpy as np
 from matplotlib import pyplot as plt
-from SpikingNN.Izh_net import *
-from SpikingNN.Var_Limb import *
+from SpikingNN.core.Izh_net import *
+from SpikingNN.core.Var_Limb import *
 from Rybak2002 import *
 from tqdm import tqdm as pbar
 import os
