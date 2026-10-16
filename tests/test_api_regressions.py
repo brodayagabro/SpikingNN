@@ -6,7 +6,7 @@ from unittest.mock import patch
 import numpy as np
 import pytest
 
-from SpikingNN import ConfigurationError, Simulation, ValidationError, run_simulation
+from SpikingNN import ConfigurationError, Simulation, ValidationError, create_simulation, run_simulation, run_simulation_async
 from SpikingNN.signals import generate_signal
 
 
@@ -174,3 +174,77 @@ def test_configuration_is_owned_by_simulation(config):
     sim = Simulation(config)
     config["simulation"]["dt"] = -1
     assert sim.config["simulation"]["dt"] == 0.1
+
+
+@pytest.mark.parametrize("fullsys", [False, True])
+def test_progress_is_optional_and_preserves_results(config, capsys, fullsys):
+    if fullsys:
+        config = full_config(config)
+    quiet = run_simulation(Simulation(config), {}).get_data()
+    assert capsys.readouterr().err == ""
+    visible = run_simulation(Simulation(config), {}, progress=True).get_data()
+    output = capsys.readouterr()
+    assert "100%" in output.err
+    assert "100/100" in output.err
+    for key in ("time", "V", "U"):
+        np.testing.assert_array_equal(visible[key], quiet[key])
+    if fullsys:
+        for name, history in quiet["limbs"].items():
+            for key, values in history.items():
+                np.testing.assert_array_equal(visible["limbs"][name][key], values)
+
+
+@pytest.mark.asyncio
+async def test_async_progress(config, capsys):
+    result = await run_simulation_async(Simulation(config), {}, progress=True)
+    expected = run_simulation(Simulation(config), {}).get_data()
+    np.testing.assert_array_equal(result.get_data()["V"], expected["V"])
+    assert "100/100" in capsys.readouterr().err
+
+
+def test_json_neuron_parameters_override_presets_and_initial_conditions(config, tmp_path):
+    import json
+
+    config["network"]["neuron_types"] = ["CH", "FS"]
+    parameters = {"a": [0.003, 0.1], "b": [0.2, 0.2], "c": [-55, -65], "d": [2, 2]}
+    config["network"]["neuron_params"] = parameters
+    path = tmp_path / "manual-neurons.json"
+    path.write_text(json.dumps(config))
+    simulation = create_simulation(path)
+    for name, expected in parameters.items():
+        np.testing.assert_array_equal(getattr(simulation.network, name), expected)
+    np.testing.assert_array_equal(simulation.network.V_prev, parameters["c"])
+    np.testing.assert_allclose(simulation.network.U_prev, np.array(parameters["b"]) * parameters["c"])
+    data = run_simulation(simulation, {"type": "constant", "amplitude": 8}).get_data()
+    assert np.isfinite(data["V"]).all()
+    v, u = manual_network_history(config, np.full((100, 2), 8))
+    np.testing.assert_array_equal(data["V"], v)
+    np.testing.assert_array_equal(data["U"], u)
+
+
+def test_partial_neuron_parameters_preserve_other_presets(config):
+    config["network"]["neuron_types"] = ["CH", "FS"]
+    original = Simulation(config)
+    config["network"]["neuron_params"] = {"a": [0.003, 0.1]}
+    custom = Simulation(config)
+    np.testing.assert_array_equal(custom.network.a, [0.003, 0.1])
+    for name in ("b", "c", "d"):
+        np.testing.assert_array_equal(getattr(custom.network, name), getattr(original.network, name))
+    signal = {"type": "constant", "amplitude": 8}
+    default_v = run_simulation(original, signal).get_data()["V"]
+    custom_v = run_simulation(custom, signal).get_data()["V"]
+    assert not np.array_equal(default_v[:, 0], custom_v[:, 0])
+    np.testing.assert_array_equal(default_v[:, 1], custom_v[:, 1])
+
+
+@pytest.mark.parametrize("parameters", [
+    {"a": [0.003]},
+    {"a": [0.003, float("nan")]},
+    {"a": [0.003, float("inf")]},
+    {"a": 0.003},
+    {"unknown": [0.003, 0.1]},
+])
+def test_invalid_neuron_parameters_are_rejected(config, parameters):
+    config["network"]["neuron_params"] = parameters
+    with pytest.raises(ConfigurationError):
+        Simulation(config)

@@ -23,6 +23,7 @@ from copy import deepcopy
 import json
 from numbers import Integral, Real
 import numpy as np
+from tqdm.auto import tqdm
 from .schema import validate_config, ConfigurationError, ValidationError, SimulationError
 from .signals import generate_signal
 from .core.Izh_net import Izhikevich_IO_Network, types2params
@@ -89,6 +90,10 @@ class Simulation:
             net_kwargs['b'] = b
             net_kwargs['c'] = c
             net_kwargs['d'] = d
+
+        # Explicit per-neuron values override the selected presets.
+        for name, values in net_config.get("neuron_params", {}).items():
+            net_kwargs[name] = np.asarray(values, dtype=float)
         
         # Set connectivity mask if provided
         connectivity = net_config.get("connectivity")
@@ -265,7 +270,7 @@ def _prepare_signal(signals: dict, input_size: int, duration: float, dt: float):
     return generate_signal(signals, duration=duration, dt=dt), list(indices)
 
 
-def run_simulation(simulation: Simulation, signals: dict = None) -> Results:
+def run_simulation(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results:
     """Run from the current state, recording each state before its time step.
 
     With signals=None, use simulation.input_current from the configuration.
@@ -273,6 +278,7 @@ def run_simulation(simulation: Simulation, signals: dict = None) -> Results:
     'neurons' field selects input channels, which Q_app maps to actual neurons.
     Repeated calls continue the current state with a local time axis starting
     at zero; create a new Simulation to repeat the initial conditions.
+    Set progress=True to show a tqdm progress bar counting completed steps.
 
     Returns time, V, U and, for fullsys, a 'limbs' dictionary of named histories
     (angle_q, angular_velocity_w, force_flex, force_ext and afferents).
@@ -305,35 +311,36 @@ def run_simulation(simulation: Simulation, signals: dict = None) -> Results:
 
     Iapp = np.zeros(net.input_size)
     Iaff = np.zeros(net.afferent_size)
-    for i in range(len(t)):
-        try:
-            results["V"][i] = net.V_prev
-            results["U"][i] = net.U_prev
-            if system is not None:
-                for name, limb in zip(system.limb_names, system.limbs):
-                    history = results["limbs"][name]
-                    history["angle_q"][i] = limb.q
-                    history["angular_velocity_w"][i] = limb.w
-                    history["force_flex"][i] = limb.F_flex
-                    history["force_ext"][i] = limb.F_ext
-                    history["afferents"][i] = limb.output
+    with tqdm(range(len(t)), disable=not progress, desc="Simulation", unit="step") as steps:
+        for i in steps:
+            try:
+                results["V"][i] = net.V_prev
+                results["U"][i] = net.U_prev
+                if system is not None:
+                    for name, limb in zip(system.limb_names, system.limbs):
+                        history = results["limbs"][name]
+                        history["angle_q"][i] = limb.q
+                        history["angular_velocity_w"][i] = limb.w
+                        history["force_flex"][i] = limb.F_flex
+                        history["force_ext"][i] = limb.F_ext
+                        history["afferents"][i] = limb.output
 
-            if signal is not None:
-                Iapp[indices] = signal[i]
-            if system is not None:
-                system.step(dt=dt, Iapp=Iapp)
-            else:
-                net.step(dt=dt, Iapp=Iapp, Iaff=Iaff)
-        except Exception as exc:
-            raise SimulationError(f"Simulation failed at timestep {i}: {exc}", timestep=i) from exc
+                if signal is not None:
+                    Iapp[indices] = signal[i]
+                if system is not None:
+                    system.step(dt=dt, Iapp=Iapp)
+                else:
+                    net.step(dt=dt, Iapp=Iapp, Iaff=Iaff)
+            except Exception as exc:
+                raise SimulationError(f"Simulation failed at timestep {i}: {exc}", timestep=i) from exc
 
     return Results(results)
 
 
-async def run_simulation_async(simulation: Simulation, signals: dict = None) -> Results:
+async def run_simulation_async(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results:
     # run_in_executor keeps compatibility with the declared Python 3.8 minimum.
     loop = asyncio.get_running_loop()
-    return await loop.run_in_executor(None, run_simulation, simulation, signals)
+    return await loop.run_in_executor(None, run_simulation, simulation, signals, progress)
 
 
 def get_results(results: Results) -> dict:

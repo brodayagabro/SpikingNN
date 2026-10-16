@@ -30,11 +30,12 @@ def config_path(tmp_path):
     return path
 
 
-def test_cli_phase_override_preserves_config_signal_and_exports_limbs(config_path, tmp_path, monkeypatch):
+def test_cli_phase_override_preserves_config_signal_and_exports_limbs(config_path, tmp_path, monkeypatch, capsys):
     csv_path, npz_path = tmp_path / "data.csv", tmp_path / "data.npz"
-    monkeypatch.setattr(sys, "argv", ["spikingnn", "sim", str(config_path), "--phase", "0.25",
+    monkeypatch.setattr(sys, "argv", ["spikingnn", "sim", str(config_path), "--phase", "0.25", "--progress",
                                      "-o", str(csv_path), str(npz_path)])
     main()
+    assert "20/20" in capsys.readouterr().err
     expected = run_simulation(create_simulation(config_path), {
         "type": "sine", "amplitude": 5, "frequency": 10, "neurons": [1], "phase": 0.25,
     }).get_data()

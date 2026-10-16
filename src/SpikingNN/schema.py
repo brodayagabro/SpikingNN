@@ -6,6 +6,8 @@ using JSON Schema. It ensures that configuration files meet the required
 format and constraints before being used by the simulation engine.
 """
 
+import math
+
 import jsonschema
 
 
@@ -66,6 +68,14 @@ SCHEMA = {
             "properties": {
                 "neuron_count": {"type": "integer", "minimum": 1},
                 "neuron_types": {"type": "array", "items": {"type": "string"}},
+                "neuron_params": {
+                    "type": "object",
+                    "properties": {
+                        name: {"type": "array", "items": {"type": "number"}}
+                        for name in ("a", "b", "c", "d")
+                    },
+                    "additionalProperties": False
+                },
                 "connectivity": {"type": "array", "items": {"type": "array"}},
                 "weights": {"type": "array", "items": {"type": "array"}},
                 "tau_syn": {"type": "array", "items": {"type": "array"}},
@@ -183,6 +193,16 @@ def validate_config(config: dict) -> None:
             path=e.absolute_path,
             schema_path=e.absolute_schema_path
         ) from e
+
+    network = config["network"]
+    for name, values in network.get("neuron_params", {}).items():
+        path = ("network", "neuron_params", name)
+        if len(values) != network["neuron_count"]:
+            raise ConfigurationError(
+                f"{name} must contain one value per neuron ({network['neuron_count']})", path=path
+            )
+        if not all(math.isfinite(value) for value in values):
+            raise ConfigurationError(f"{name} must contain finite values", path=path)
 
     if config["system_type"] == "fullsys":
         limbs = config.get("limbs", [])

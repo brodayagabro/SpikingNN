@@ -162,3 +162,22 @@ cython_debug/
 # mimo Code
 .mimocode/
 .mimocode/*
+
+# Local experiment outputs, historical runs and generated reports
+/scripts/SteppingReflexGA/archive/
+/scripts/SteppingReflexGA/**/report/
+/scripts/SteppingReflexGA/**/img/
+/scripts/SteppingReflexGA/**/runtime/
+/scripts/SteppingReflexGA/**/*.npz
+/scripts/SteppingReflexGA/**/*.npy
+/scripts/SteppingReflexGA/**/*.csv
+/scripts/SteppingReflexGA/**/*.png
+/scripts/SteppingReflexGA/**/*.pdf
+/scripts/SteppingReflexGA/**/*.svg
+/scripts/SteppingReflexGA/**/*.pptx
+/scripts/SteppingReflexGA/**/*.zip
+/scripts/SteppingReflexGA/**/*.ipynb
+*.nbc
+*.nbi
+/examples/4Limb_cpg_system/*/dynamics.png
+/examples/4Limb_cpg_system/*/config.json

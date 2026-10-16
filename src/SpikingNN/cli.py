@@ -64,7 +64,7 @@ def run_simulation_cli(args):
     # Запуск симуляции
     try:
         print("🚀 Запуск симуляции...")
-        results = run_simulation(sim, signals)
+        results = run_simulation(sim, signals, progress=args.progress)
         data = get_results(results)
         print(f"✅ Симуляция завершена!")
         print(f"   Временные шаги: {len(data['time'])}")
@@ -164,6 +164,7 @@ def main():
     
     # Подкоманда SIM
     sim_parser = subparsers.add_parser('sim', help='Запустить симуляцию')
+    sim_parser.add_argument("--progress", action="store_true", help="Показать прогресс симуляции (tqdm)")
     sim_parser.add_argument(
         "config",
         type=str,
