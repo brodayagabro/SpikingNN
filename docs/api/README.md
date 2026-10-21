@@ -54,7 +54,7 @@ print(f"System type: {sim.system_type}")
 print(f"Neuron count: {sim.network.N}")
 ```
 
-### `run_simulation(simulation: Simulation, signals: dict = None) -> Results`
+### `run_simulation(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results`
 
 Runs a simulation with the given signals.
 
@@ -63,6 +63,9 @@ Runs a simulation with the given signals.
 - `signals` (dict, optional): Signal parameters dictionary. Omit it or pass `None`
   to use `simulation.input_current` from the JSON configuration. Pass `{}` to
   select zero external current. The system advances in both cases.
+- `progress` (bool, default `False`): Show a `tqdm` progress bar counting completed
+  simulation steps. Terminal progress is written to stderr; notebooks use the
+  display supported by `tqdm.auto`. Results are unchanged.
 
 An explicit signal dictionary replaces the configured signal. Each run generates
 the signal once. Repeated runs continue the current system state, with a local
@@ -89,7 +92,7 @@ signals = {
 results = run_simulation(sim, signals)
 ```
 
-### `run_simulation_async(simulation: Simulation, signals: dict = None) -> Results`
+### `run_simulation_async(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results`
 
 Async version of `run_simulation()` for non-blocking execution.
 It uses the same input defaults and result format. Concurrent runs must use
@@ -98,6 +101,7 @@ separate simulation objects, since execution changes the system state.
 **Parameters:**
 - `simulation` (Simulation): Simulation object
 - `signals` (dict): Signal parameters
+- `progress` (bool, default `False`): Show the same progress bar as the synchronous API.
 
 **Returns:**
 - `Results`: Coroutine that resolves to Results object
@@ -153,6 +157,16 @@ print(f"V shape: {data['V'].shape}")
 ### `Simulation`
 
 Represents a configured simulation.
+
+`network.neuron_params` can override Izhikevich presets using arrays `a`, `b`,
+`c`, and `d`. Each supplied array must contain exactly `neuron_count` finite
+numbers in neuron-index order. Omitted parameters retain their values from
+`neuron_types` (or the core defaults if no types are supplied). Overrides are
+passed to the existing core constructor before initial states are created.
+
+For example, with `neuron_types=["CH", "FS", "CH", "FS"]`, use
+`"neuron_params": {"a": [0.003, 0.1, 0.003, 0.1]}` to change the two CPG
+neurons while preserving the motoneuron presets.
 
 **Attributes:**
 - `config` (dict): Original configuration dictionary

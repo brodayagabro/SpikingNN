@@ -1,0 +1,8 @@
+# Keep the editable article notebook and its data helpers; ignore report outputs.
+!/report/
+/report/*
+!/report/article_figures.ipynb
+!/report/article_figure_data.py
+!/report/README.md
+!/report/README.en.md
+!/report/analyze_historical_polynomial.py

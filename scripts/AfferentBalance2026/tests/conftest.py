@@ -1,3 +1,4 @@
+"""Configure import paths for experiment tests."""
 from pathlib import Path
 import sys
 

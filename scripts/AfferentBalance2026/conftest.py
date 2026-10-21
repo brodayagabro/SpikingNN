@@ -1,2 +1,3 @@
-"""Historical tests assert results from a different model; current tests live in tests/."""
-collect_ignore = ["archive"]
+"""Exclude immutable historical tests and generated runs from live collection."""
+collect_ignore = ["archive", "report"]
+collect_ignore_glob = ["experiments/*/results"]

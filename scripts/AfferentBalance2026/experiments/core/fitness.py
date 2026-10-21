@@ -3,6 +3,12 @@ import numpy as np
 
 
 def fitness(metrics):
+    """Reduce a nonempty K-by-9 episode-metric matrix to one robust fitness.
+
+    Only the episode-score column enters the weighted reduction: 0.50 times
+    the mean, 0.30 times the mean of the worst ceil(K/4) trials, and 0.20 times
+    the minimum. Return a Python float; reject nonfinite or malformed input.
+    """
     metrics = np.asarray(metrics, dtype=float)
     if metrics.ndim != 2 or not len(metrics) or metrics.shape[1] != 9:
         raise ValueError("Expected a nonempty matrix of nine episode metrics")

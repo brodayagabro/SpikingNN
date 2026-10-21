@@ -1,235 +1,206 @@
-"""Bounded, normalized genome for the two-neuron circuit in the notebook."""
+"""The explicit 52-field genome: 50 controller parameters and two fixed lengths.
 
-from dataclasses import asdict, dataclass
+Applied currents are simulation inputs, not genes. Every saved genome embeds its
+configuration, so geometry and search bounds survive outside the experiment folder.
+"""
+from copy import deepcopy
+import hashlib
 import json
 from pathlib import Path
 
 import numpy as np
-from .config import MECHANICS, DT_MS, MODEL
 
-
-@dataclass(frozen=True)
-class Gene:
-    name: str
-    low: float
-    high: float
-    initial: float
-    log: bool = False
-
-
-def _genes():
-    genes = []
-    for name, lo, hi, initial, log in (
-        ('a', .005, .15, .1, True), ('b', .15, .3, .2, False),
-        ('c', -70, -45, -65, False), ('d', .1, 8, 2, True),
-    ):
-        genes.extend(Gene(f'neurons.{name}.{i}', lo, hi, initial, log) for i in range(2))
-    genes.extend(Gene(f'synapses.W.{i}.{j}', -2, 2, -.1 if i != j else 0)
-                 for i in range(2) for j in range(2))
-    genes.extend(Gene(f'synapses.tau_ms.{i}.{j}', 2, 60, 20, True)
-                 for i in range(2) for j in range(2))
-    for side in ('flexor', 'extensor'):
-        for name, lo, hi, initial, log in (
-            ('w', .02, 1.5, .15, True), ('N', 1, 40, 2, False),
-            ('A', .001, .02, .0074, True), ('tau_c', 5, 100, 20, True),
-            ('tau_1', 5, 100, 20, True), ('m', 1.5, 4, 2.5, False),
-            ('k', .1, 2, .75, True),
-        ):
-            genes.append(Gene(f'muscles.{side}.{name}', lo, hi, initial, log))
-    # Contralateral stretch excites the corrective actuator at q = -pi/2.
-    initial_feedback = [[-40, -600, -1, 40, 600, 0], [40, 600, 0, -40, -600, -1]]
-    for i in range(2):
-        for j, kind in enumerate(('Ia_F', 'II_F', 'Ib_F', 'Ia_E', 'II_E', 'Ib_E')):
-            bound = (200, 2000, 30)[j % 3]
-            genes.append(Gene(f'feedback.Q_aff.{i}.{kind}', -bound, bound, initial_feedback[i][j]))
-    length = float(np.hypot(.2, .05))
-    genes.extend(Gene(f'feedback.L_th.{i}', .85 * length, 1.1 * length, length) for i in range(2))
-    genes.extend(Gene(f'feedback.F_th.{i}', .1, 5, 3.38, True) for i in range(2))
-    genes.extend(Gene(f'input.bias_nA.{i}', 0, 8, 0) for i in range(2))
-    genes.extend(Gene(f'output.P.{i}.{j}', 0, 2, float(i == j)) for i in range(2) for j in range(2))
-    return tuple(genes)
-
-
-GENES = _genes()
-SIZE = len(GENES)
-LOW = np.array([np.log(g.low) if g.log else g.low for g in GENES])
-HIGH = np.array([np.log(g.high) if g.log else g.high for g in GENES])
-LOG = np.array([g.log for g in GENES])
-
-
-def encode(physical):
-    physical = np.asarray(physical, dtype=float)
-    if physical.shape != (SIZE,) or not np.isfinite(physical).all():
-        raise ValueError(f'Expected {SIZE} finite physical parameters')
-    if np.any(physical[LOG] <= 0):
-        raise ValueError('Logarithmic parameters must be positive')
-    transformed = physical.copy()
-    transformed[LOG] = np.log(transformed[LOG])
-    vector = (transformed - LOW) / (HIGH - LOW)
-    if np.any(vector < -1e-12) or np.any(vector > 1 + 1e-12):
-        raise ValueError('Physical parameters outside genome bounds')
-    return np.clip(vector, 0, 1)
-
-
-def decode(vector):
-    vector = np.asarray(vector, dtype=float)
-    if vector.shape != (SIZE,) or not np.isfinite(vector).all() or np.any((vector < 0) | (vector > 1)):
-        raise ValueError(f'Expected {SIZE} finite genes in [0, 1]')
-    physical = LOW + vector * (HIGH - LOW)
-    physical[LOG] = np.exp(physical[LOG])
-    return physical
-
-
-def initial_genome():
-    return encode([gene.initial for gene in GENES])
-
-
-def parameters(vector):
-    p = decode(vector)
-    return {
-        'neurons': {key: p[2*i:2*i+2].tolist() for i, key in enumerate(('a', 'b', 'c', 'd'))},
-        'synapses': {'weights_target_source': p[8:12].reshape(2, 2).tolist(),
-                     'tau_ms': p[12:16].reshape(2, 2).tolist()},
-        'muscles': {side: dict(zip(('w', 'N', 'A', 'tau_c', 'tau_1', 'm', 'k'),
-                                  p[16+7*i:23+7*i].tolist()))
-                    for i, side in enumerate(('flexor', 'extensor'))},
-        'feedback': {'Q_aff': p[30:42].reshape(2, 6).tolist(),
-                     'channel_order': ['Ia_F', 'II_F', 'Ib_F', 'Ia_E', 'II_E', 'Ib_E'],
-                     'L_th': p[42:44].tolist(), 'F_th': p[44:46].tolist()},
-        'bias_nA': p[46:48].tolist(), 'P': p[48:52].reshape(2, 2).tolist(),
-    }
-
-
-def save_genome(path, vector, **metadata):
-    physical = decode(vector)
-    payload = {'version': 1, 'genes': [asdict(g) for g in GENES],
-               'normalized': np.asarray(vector).tolist(), 'parameters': parameters(vector),
-               'hyperparameters': {'comment': 'Фиксированные параметры; не входят в геном и не мутируют.',
-                                   'mechanics': asdict(MECHANICS), 'dt_ms': DT_MS,
-                                   'afferent_model': MODEL},
-               'metadata': metadata}
-    for index, (entry, value) in enumerate(zip(payload['genes'], physical)):
-        description, parameter, unit = describe_gene(entry['name'])
-        entry.update(index=index, value=float(value), description=description,
-                     system_parameter=parameter, unit=unit)
-    Path(path).write_text(format_json(payload) + '\n')
-
-
-def describe_gene(name):
-    """Human-readable comments stored as valid JSON fields, not JSON // syntax."""
-    fields = name.split('.')
-    group, key = fields[:2]
-    if group == 'neurons':
-        meanings = {'a': ('Скорость восстановления переменной U', '1/мс'),
-                    'b': ('Чувствительность U к мембранному потенциалу V', 'ед. модели'),
-                    'c': ('Потенциал сброса после спайка', 'мВ'),
-                    'd': ('Приращение U при сбросе после спайка', 'ед. модели')}
-        text, unit = meanings[key]
-        return f'{text}; мотонейрон {fields[2]}.', f'Izhikevich_IO_Network.{key}[{fields[2]}]', unit
-    if group == 'synapses':
-        target, source = fields[2:]
-        if key == 'W':
-            return (f'Вес синапса от нейрона {source} к нейрону {target}; знак задаёт возбуждение/торможение.',
-                    f'Izhikevich_IO_Network.W[{target},{source}]', 'ед. модели')
-        return (f'Время затухания синаптического тока от нейрона {source} к нейрону {target}.',
-                f'Izhikevich_IO_Network.tau_syn[{target},{source}] (вход конструктора)', 'мс')
-    if group == 'muscles':
-        muscle = 'сгибатель' if key == 'flexor' else 'разгибатель'
-        parameter = fields[2]
-        meanings = {'w': ('Вес нейромышечного синапса; множитель входа в динамике кальция', 'ед. модели'),
-                    'N': ('Эффективное число мышечных единиц; множитель силы', 'безразмерная'),
-                    'A': ('Масштаб генерации силы одной единицей', 'Н/мс'),
-                    'tau_c': ('Время затухания кальция Cn', 'мс'),
-                    'tau_1': ('Время релаксации силы F', 'мс'),
-                    'm': ('Показатель степени в x=Cn^m/(Cn^m+k^m)', 'безразмерная'),
-                    'k': ('Полуактивационная концентрация кальция', 'ед. Cn модели')}
-        text, unit = meanings[parameter]
-        return f'{text}; {muscle}.', f'{key}.SimpleAdaptedMuscle.{parameter} (вход конструктора)', unit
-    if group == 'feedback':
-        if key == 'Q_aff':
-            neuron, channel = fields[2:]
-            return (f'Вес афферентного канала {channel} на мотонейрон {neuron}; F — сгибатель, E — разгибатель.',
-                    f'Izhikevich_IO_Network.Q_aff[{neuron},{channel}]', 'ед. модели')
-        muscle = 'сгибатель' if fields[2] == '0' else 'разгибатель'
-        text, unit = ('Пороговая длина растяжения для Ia и II', 'м') if key == 'L_th' else ('Пороговая сила для Ib', 'Н')
-        return f'{text}; {muscle}.', f'Afferents[{fields[2]}].{key}', unit
-    if group == 'input':
-        return (f'Постоянный внешний ток на мотонейрон {fields[2]}; в опытах равновесия фиксирован на нуле.',
-                f'Izhikevich_IO_Network.step(Iapp)[{fields[2]}]', 'ед. тока модели')
-    if group == 'output':
-        muscle, neuron = fields[2:]
-        return (f'Проекция спайкового выхода нейрона {neuron} на мышцу {muscle} (0 — сгибатель, 1 — разгибатель).',
-                f'Izhikevich_IO_Network.P[{muscle},{neuron}]', 'безразмерная')
-    raise ValueError(f'Unknown genome field: {name}')
-
-
-def format_json(value, level=0):
-    """Pretty JSON with each vector / matrix row on a single line."""
-    indent = '  ' * level
-    child_indent = indent + '  '
-    if isinstance(value, dict) and value:
-        return '{\n' + ',\n'.join(
-            child_indent + json.dumps(key, ensure_ascii=False) + ': ' + format_json(item, level+1)
-            for key, item in value.items()) + '\n' + indent + '}'
-    if isinstance(value, list) and any(isinstance(item, (dict, list)) for item in value):
-        return '[\n' + ',\n'.join(child_indent + format_json(item, level+1) for item in value) + '\n' + indent + ']'
-    return json.dumps(value, ensure_ascii=False, allow_nan=False)
-
-
-def load_genome(path):
-    payload = json.loads(Path(path).read_text())
-    if payload.get('version') != 1 or [g['name'] for g in payload['genes']] != [g.name for g in GENES]:
-        raise ValueError('Incompatible genome schema')
-    vector = np.array(payload['normalized'], dtype=float)
-    decode(vector)
-    return vector
-
-
-# The canonical 52-field representation remains readable for historical data.
-# New balance searches have only 50 free genes: applied currents are exactly zero.
+SCHEMA = "afferent_controller_52_v4"
+SIZE = 52
 WEIGHT_INDICES = np.array([16, 23])
-BIAS_INDICES = np.array([46, 47])
-FREE_INDICES = np.setdiff1d(np.arange(SIZE), BIAS_INDICES)
+GEOMETRY_INDICES = np.array([46, 47])
+
+# 0:8    Izhikevich a, b, c, d, each for neurons 0 and 1.
+# 8:12   Recurrent W[target, source]; 12:16 decay times in milliseconds.
+# 16:23  Flexor w, N, A, tau_c, tau_1, m, k; 23:30 the same for extensor.
+# 30:42  Q_aff[neuron, channel], channels Ia_F, II_F, Ib_F, Ia_E, II_E, Ib_E.
+# 42:44  Receptor length thresholds (m); 44:46 force thresholds (N).
+# 46:48  a1 and a2 (m): fixed config values, excluded from mutation/crossover.
+# 48:52  P[muscle, neuron]. Mass/length/viscosity/gravity remain config metadata.
+NAMES = (
+    *(f"neurons.{key}.{i}" for key in ("a", "b", "c", "d") for i in range(2)),
+    *(f"synapses.W.{i}.{j}" for i in range(2) for j in range(2)),
+    *(f"synapses.tau_ms.{i}.{j}" for i in range(2) for j in range(2)),
+    *(f"muscles.{side}.{key}" for side in ("flexor", "extensor")
+      for key in ("w", "N", "A", "tau_c", "tau_1", "m", "k")),
+    *(f"feedback.Q_aff.{i}.{channel}" for i in range(2)
+      for channel in ("Ia_F", "II_F", "Ib_F", "Ia_E", "II_E", "Ib_E")),
+    *(f"feedback.L_th.{i}" for i in range(2)),
+    *(f"feedback.F_th.{i}" for i in range(2)),
+    "geometry.a1", "geometry.a2",
+    *(f"output.P.{i}.{j}" for i in range(2) for j in range(2)),
+)
+MECHANICAL_NAMES = ("mass_kg", "length_m", "viscosity", "gravity_m_s2")
 
 
-@dataclass(frozen=True)
-class ControllerDomain:
-    small_weights: bool = False
+def write_json(path, value):
+    """Write finite UTF-8 JSON atomically, preserving valid numerical metadata."""
+    path = Path(path)
+    temporary = path.with_suffix(".tmp.json")
+    temporary.write_text(json.dumps(value, ensure_ascii=False, indent=2, allow_nan=False) + "\n")
+    temporary.replace(path)
+
+
+def file_hash(path):
+    """Return a SHA256 without loading a large result into memory."""
+    with Path(path).open("rb") as stream:
+        return hashlib.file_digest(stream, "sha256").hexdigest()
+
+
+class GenomeConfig:
+    """Load named parameters and map mutable coordinates to physical values.
+
+    ``decode`` inserts fixed geometry after genetic operations. ``encode`` rejects
+    geometry mismatches and values outside this experiment's physical bounds.
+    All configuration values are copied; callers cannot change a running domain
+    by editing the input dictionary.
+    """
+
+    def __init__(self, source):
+        """Read a JSON path or configuration dictionary and validate the schema."""
+        self.data = deepcopy(source if isinstance(source, dict)
+                             else json.loads(Path(source).read_text()))
+        data = self.data
+        if data.get("schema") != SCHEMA or data.get("dt_ms") != .1:
+            raise ValueError("Expected the new 52-field schema and dt_ms=0.1")
+        fields = data["parameters"]
+        if len(fields) != SIZE or tuple(p["name"] for p in fields) != NAMES:
+            raise ValueError("Genome field names/order must match the explicit 52-field schema")
+        if [p["index"] for p in fields] != list(range(SIZE)):
+            raise ValueError("Genome indices must be 0..51")
+        self.initial_physical = np.array([p["value"] for p in fields], dtype=float)
+        if not np.isfinite(self.initial_physical).all():
+            raise ValueError("Nonfinite genome value")
+        if any(fields[i]["mutable"] for i in GEOMETRY_INDICES):
+            raise ValueError("a1 and a2 are fixed hyperparameters and cannot mutate")
+        self.free = np.array([i for i, p in enumerate(fields) if p["mutable"]], dtype=int)
+        if not len(self.free):
+            raise ValueError("At least one controller parameter must be mutable")
+        self.log = np.array([fields[i].get("scale") == "log" for i in self.free])
+        self.minimum = np.array([fields[i]["minimum"] for i in self.free], dtype=float)
+        self.maximum = np.array([fields[i]["maximum"] for i in self.free], dtype=float)
+        if (not np.isfinite(self.minimum).all() or not np.isfinite(self.maximum).all()
+                or np.any(self.minimum >= self.maximum)
+                or np.any(self.minimum[self.log] <= 0)
+                or any(fields[i].get("scale") not in ("linear", "log") for i in self.free)):
+            raise ValueError("Invalid finite search bounds or logarithmic scale")
+        self.lower, self.upper = self.minimum.copy(), self.maximum.copy()
+        self.lower[self.log] = np.log(self.lower[self.log])
+        self.upper[self.log] = np.log(self.upper[self.log])
+        self.mechanics = np.array([data["mechanics"][key] for key in MECHANICAL_NAMES], dtype=float)
+        if (not np.isfinite(self.mechanics).all() or np.any(self.mechanics[[0, 1, 3]] <= 0)
+                or self.mechanics[2] < 0):
+            raise ValueError("Invalid mass, link length, viscosity or gravity")
+        self.validate_physical(self.initial_physical)
+        self.encode(self.initial_physical)
+        expected_cap = {"A_balance": 1., "B_balance": .02}.get(data.get("experiment"))
+        if expected_cap is not None:
+            for i in WEIGHT_INDICES:
+                field = fields[i]
+                cap = field["maximum"] if field["mutable"] else field["value"]
+                if cap > expected_cap:
+                    raise ValueError(f"{data['experiment']} requires w <= {expected_cap}")
 
     @property
     def size(self):
-        return len(FREE_INDICES)
+        """Return the number of free search coordinates; fixed fields are excluded."""
+        return len(self.free)
 
-    def _high(self):
-        high = np.ones(SIZE)
-        if self.small_weights:
-            upper = decode(high)
-            upper[WEIGHT_INDICES] = np.nextafter(.1, 0.)
-            high = encode(upper)
-            # A strict bound, including exp/log roundoff at the endpoint.
-            while np.any(decode(high)[WEIGHT_INDICES] >= .1):
-                high[WEIGHT_INDICES] = np.nextafter(high[WEIGHT_INDICES], 0.)
-        return high
+    @property
+    def signature(self):
+        """Return a content signature for bounds, mechanics and the entire protocol."""
+        payload = json.dumps(self.data, sort_keys=True, allow_nan=False).encode()
+        return hashlib.sha256(payload).hexdigest()
 
-    def decode(self, unit):
-        unit = np.asarray(unit, dtype=float)
-        if unit.shape != (self.size,) or not np.isfinite(unit).all() or np.any((unit < 0) | (unit > 1)):
-            raise ValueError("Expected 50 finite normalized controller genes")
-        canonical = np.zeros(SIZE)
-        canonical[FREE_INDICES] = unit * self._high()[FREE_INDICES]
-        return decode(canonical)
-
-    def encode(self, physical):
-        physical = np.asarray(physical, dtype=float)
-        if physical.shape != (SIZE,) or np.any(physical[BIAS_INDICES] != 0):
-            raise ValueError("Balance controllers require exactly zero applied currents")
-        unit = encode(physical)[FREE_INDICES] / self._high()[FREE_INDICES]
-        if np.any(unit > 1 + 1e-12) or (self.small_weights and np.any(physical[WEIGHT_INDICES] >= .1)):
-            raise ValueError("Neuromuscular weights outside the search domain")
-        return np.clip(unit, 0, 1)
+    @staticmethod
+    def validate_physical(physical):
+        """Reject physically invalid parameters before reaching compiled dynamics."""
+        p = np.asarray(physical, dtype=float)
+        if p.shape != (SIZE,) or not np.isfinite(p).all():
+            raise ValueError("Expected 52 finite physical parameters")
+        positive = [0, 1, *range(12, 16), *range(16, 30), *range(42, 48)]
+        if np.any(p[positive] <= 0) or np.any(p[48:52] < 0):
+            raise ValueError("Times, muscle parameters and geometry must be positive; P >= 0")
+        if min(p[19], p[20], p[26], p[27]) < .1 or p[46] == p[47]:
+            raise ValueError("Muscle times must be >= 0.1 ms and a1 must differ from a2")
+        return p
 
     def initial(self):
-        physical = decode(initial_genome())
-        if self.small_weights:
-            physical[WEIGHT_INDICES] = .08
-        return self.encode(physical)
+        """Return the normalized initial candidate from this experiment's JSON."""
+        return self.encode(self.initial_physical)
+
+    def decode(self, unit):
+        """Map free [0,1] coordinates to 52 physical values, inserting fixed fields."""
+        unit = np.asarray(unit, dtype=float)
+        if unit.shape != (self.size,) or not np.isfinite(unit).all() or np.any((unit < 0) | (unit > 1)):
+            raise ValueError(f"Expected {self.size} normalized coordinates in [0,1]")
+        values = self.lower + unit * (self.upper - self.lower)
+        values[self.log] = np.exp(values[self.log])
+        p = self.initial_physical.copy()
+        # Clip exp/log roundoff so inclusive upper bounds are respected exactly.
+        p[self.free] = np.clip(values, self.minimum, self.maximum)
+        return p
+
+    def encode(self, physical):
+        """Encode values after checking search bounds and exact fixed hyperparameters."""
+        p = self.validate_physical(physical)
+        fixed = np.setdiff1d(np.arange(SIZE), self.free)
+        if not np.array_equal(p[fixed], self.initial_physical[fixed]):
+            raise ValueError("Fixed parameters differ from genome_cfg.json")
+        values = p[self.free].copy()
+        if np.any(values < self.minimum) or np.any(values > self.maximum):
+            raise ValueError("Physical values exceed this experiment's bounds")
+        values[self.log] = np.log(values[self.log])
+        return np.clip((values - self.lower) / (self.upper - self.lower), 0, 1)
+
+    def save(self, path, physical, **metadata):
+        """Save a self-contained genome with descriptions, geometry and provenance."""
+        unit = self.encode(physical)
+        write_json(path, dict(schema=SCHEMA, configuration=self.data,
+                             configuration_sha256=self.signature, names=list(NAMES),
+                             physical=np.asarray(physical).tolist(), normalized=unit.tolist(),
+                             metadata=metadata))
+
+
+def load_genome(path):
+    """Load a current genome and return its configuration and physical values.
+
+    Historical arrays are rejected: their offsets 46/47 mean applied currents.
+    Use ``import_legacy`` explicitly for a compatible historical controller.
+    """
+    payload = json.loads(Path(path).read_text())
+    if payload.get("schema") != SCHEMA or tuple(payload.get("names", ())) != NAMES:
+        raise ValueError("Not a current genome; historical files need explicit import_legacy")
+    config = GenomeConfig(payload["configuration"])
+    if payload["configuration_sha256"] != config.signature:
+        raise ValueError("Saved genome configuration checksum mismatch")
+    physical = np.asarray(payload["physical"], dtype=float)
+    np.testing.assert_allclose(config.encode(physical), payload["normalized"], atol=1e-12, rtol=0)
+    return config, physical
+
+
+def import_legacy(path, config):
+    """Explicitly convert an old zero-current JSON genome to the new schema.
+
+    Preserve all 50 controller values, replace old zero-current slots with the
+    configured geometry, and reject out-of-domain values instead of clipping.
+    This does not transfer historical performance claims to a new protocol.
+    """
+    payload = json.loads(Path(path).read_text())
+    genes = payload.get("genes", [])
+    expected_names = list(NAMES)
+    expected_names[46:48] = ["input.bias_nA.0", "input.bias_nA.1"]
+    if (payload.get("version") != 1 or len(genes) != SIZE
+            or [gene.get("name") for gene in genes] != expected_names):
+        raise ValueError("Expected a historical version-1 genome with applied-current slots")
+    physical = np.array([g["value"] for g in genes], dtype=float)
+    if np.any(physical[46:48] != 0):
+        raise ValueError("Historical applied currents must be supplied separately")
+    physical[46:48] = config.initial_physical[46:48]
+    config.encode(physical)
+    return physical

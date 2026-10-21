@@ -120,6 +120,9 @@ continue the current state; construct a new simulation for an independent run.
 For `fullsys`, `data['limbs'][name]` also contains histories of angle, angular
 velocity, muscle forces and all six afferent channels. See [API documentation](docs/api/README.md).
 
+Pass `progress=True` to `run_simulation` or `run_simulation_async` to display a
+`tqdm` progress bar. The CLI supports `spikingnn sim config.json --progress`.
+
 ### Async API
 
 For non-blocking execution:

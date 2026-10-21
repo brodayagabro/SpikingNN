@@ -164,20 +164,27 @@ cython_debug/
 .mimocode/*
 
 # Local experiment outputs, historical runs and generated reports
-/scripts/SteppingReflexGA/archive/
-/scripts/SteppingReflexGA/**/report/
-/scripts/SteppingReflexGA/**/img/
-/scripts/SteppingReflexGA/**/runtime/
-/scripts/SteppingReflexGA/**/*.npz
-/scripts/SteppingReflexGA/**/*.npy
-/scripts/SteppingReflexGA/**/*.csv
-/scripts/SteppingReflexGA/**/*.png
-/scripts/SteppingReflexGA/**/*.pdf
-/scripts/SteppingReflexGA/**/*.svg
-/scripts/SteppingReflexGA/**/*.pptx
-/scripts/SteppingReflexGA/**/*.zip
-/scripts/SteppingReflexGA/**/*.ipynb
+/scripts/AfferentBalance2026/archive/
+/scripts/AfferentBalance2026/**/report/
+/scripts/AfferentBalance2026/**/img/
+/scripts/AfferentBalance2026/**/runtime/
+/scripts/AfferentBalance2026/**/*.npz
+/scripts/AfferentBalance2026/**/*.npy
+/scripts/AfferentBalance2026/**/*.csv
+/scripts/AfferentBalance2026/**/*.png
+/scripts/AfferentBalance2026/**/*.pdf
+/scripts/AfferentBalance2026/**/*.svg
+/scripts/AfferentBalance2026/**/*.pptx
+/scripts/AfferentBalance2026/**/*.zip
+/scripts/AfferentBalance2026/**/*.ipynb
+!/scripts/AfferentBalance2026/notebooks/training_phase_trajectories.ipynb
 *.nbc
 *.nbi
 /examples/4Limb_cpg_system/*/dynamics.png
 /examples/4Limb_cpg_system/*/config.json
+
+# ABC protocol: keep source notebooks, exclude every generated result file.
+/scripts/AfferentBalance2026/experiments/*/results/
+!/scripts/AfferentBalance2026/experiments/A_balance/explore_genome.ipynb
+!/scripts/AfferentBalance2026/experiments/B_balance/explore_genome.ipynb
+!/scripts/AfferentBalance2026/experiments/C_setpoint_balance/explore_genome.ipynb

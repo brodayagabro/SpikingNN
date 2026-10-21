@@ -6,6 +6,11 @@ from pathlib import Path
 import re
 import zipfile
 
+if __package__:
+    from .runtime_support import resolve_recorded_path
+else:
+    from runtime_support import resolve_recorded_path
+
 ROOT = Path(__file__).resolve().parent
 REPO = ROOT.parents[1]
 EXPERIMENTS = ROOT / "experiments"
@@ -29,6 +34,7 @@ def image_path(path, create=True):
 
 
 def image_link(directory, filename):
+    """Return a relative link to an image after applying the experiment image layout."""
     return Path(os.path.relpath(
         image_path(Path(directory) / filename, create=False), directory)).as_posix()
 
@@ -36,6 +42,7 @@ def image_link(directory, filename):
 def report_image_links(text, directory):
     """Keep generated Markdown links consistent with the separate img tree."""
     def replace(match):
+        """Rewrite a local image target while leaving URLs and data links unchanged."""
         target = match.group(1)
         if "://" in target or Path(target).suffix.lower() not in (".png", ".pdf", ".svg"):
             return match.group(0)
@@ -46,11 +53,14 @@ def report_image_links(text, directory):
 def recorded_source(path):
     """Resolve a historical filename without modifying archived run metadata."""
     path = Path(path)
-    path = path if path.is_absolute() else REPO / path
+    path = resolve_recorded_path(path, relative_to=REPO)
     try:
         relative = path.relative_to(ROOT).as_posix()
     except ValueError:
         return path
+    previous = ROOT / "archive/pre_ABC_20261020" / relative
+    if relative.startswith("experiments/") and previous.is_file():
+        return previous
     migration_path = ROOT / "archive/core_migration.json"
     migration = json.loads(migration_path.read_text()) if migration_path.exists() else {"files": {}}
     if relative in migration["files"]:
@@ -73,7 +83,7 @@ def verify_recorded_source(path, expected):
     checked against the source snapshot, not replaced by current-code hashes.
     """
     path = Path(path)
-    path = path if path.is_absolute() else REPO / path
+    path = resolve_recorded_path(path, relative_to=REPO)
     current = recorded_source(path)
     if current.is_file() and hashlib.sha256(current.read_bytes()).hexdigest() == expected:
         return "archived" if ROOT / "archive" in current.parents else "current"
