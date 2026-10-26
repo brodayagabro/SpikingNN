@@ -6,11 +6,13 @@
 
 The plotted angle is $\theta=q+\pi/2$: vertical unstable equilibrium is $\theta=0$.
 
-$$J\ddot q=\frac{mgL}{2}\cos q-\eta\dot q+F_f h(q)-F_e h(\pi-q),\qquad J=mL^2/3.$$
+$$J\ddot q=\frac{mgL}{2}\cos q-\eta\dot q-F_f h(q)+F_e h(\pi-q),\qquad J=mL^2/3.$$
 
 $$\ell(q)=\sqrt{a_1^2+a_2^2-2a_1a_2\cos q},\qquad h(q)=a_1a_2\sin q/\ell(q).$$
 
 There is no torque multiplier. Mechanics uses seconds; neural and muscle updates use milliseconds, with the explicit conversion $dt_s=10^{-3}dt_{ms}$. The common step is 0.1 ms. Force and angle are updated in the same order as the library; muscle torque uses the pre-update angle. Positive muscle lengthening speeds are $v_f=h(q)\dot q$ and $v_e=-h(\pi-q)\dot q$.
+
+For positive tendon tension, $M_i=-F_i\,\partial\ell_i/\partial q$. The muscle-moment sign correction is identified as `SpikingNN.Afferents/v3-tensile`. Lengthening velocities and the sign of external torque are unchanged. Earlier v2 results require re-evaluation.
 
 ## Neural and muscle states
 

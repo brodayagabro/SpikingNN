@@ -9,7 +9,7 @@ from SpikingNN.core.Izh_net import Afferents
 from .core.genome import GenomeConfig
 
 DT_MS = .1
-MODEL = "SpikingNN.Afferents/v2"
+MODEL = "SpikingNN.Afferents/v3-tensile"
 TARGET = -np.pi / 2
 ANGLE_LIMIT = np.pi / 2
 SETTLE_ANGLE = np.deg2rad(3.)
@@ -260,7 +260,8 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride):
         lf = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(q))
         le = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(np.pi-q))
         hf, he = A1*A2*np.sin(q)/lf, A1*A2*np.sin(np.pi-q)/le
-        torque = force[0]*hf - force[1]*he
+        # Positive tension shortens a tendon: M_i = -F_i * dL_i/dq.
+        torque = -force[0]*hf + force[1]*he
         next_omega = omega + .001*dt_ms * (.5*GRAVITY*MASS*LENGTH*np.cos(q) - VISCOSITY*omega + torque)/INERTIA
         q += .001*dt_ms * omega
         omega = next_omega
