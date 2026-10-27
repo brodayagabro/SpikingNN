@@ -6,7 +6,7 @@ import matplotlib.pyplot as plt
 from matplotlib import font_manager
 import numpy as np
 
-from .core.genome import GenomeConfig, NAMES, SCHEMA, load_genome
+from .core.genome import GenomeConfig, MIRROR_INDICES, NAMES, SCHEMA, load_genome
 from .simulation import case_grid, simulate
 
 
@@ -71,20 +71,23 @@ def replay_grid(config, physical, angles_deg=None, speeds=None, *, target_deg=0.
 
 def parameter_scan(config, physical, name, values, *, theta0_deg=30., omega0=0.,
                    target_deg=0., currents=(0., 0.), duration_s=None):
-    """Replay one case while varying one mutable physical parameter within bounds.
+    """Replay one case while varying a mutable parameter and its tied partner.
 
     Fixed geometry cannot be swept here; change a1/a2 in a separate configuration
-    to compare explicitly different mechanical systems.
+    to compare explicitly different mechanical systems. A mirrored domain changes
+    both physical members of the selected pair, including a nonrepresentative one.
     """
     if name not in NAMES:
         raise ValueError(f"Unknown genome parameter: {name}")
     index = NAMES.index(name)
-    if index not in config.free:
+    if index not in config.mutable:
         raise ValueError("Fixed geometry/hyperparameters require a separate configuration")
     results = []
     for value in values:
         candidate = np.array(physical, copy=True)
         candidate[index] = value
+        if config.mirror_symmetry:
+            candidate[MIRROR_INDICES[index]] = value
         config.encode(candidate)
         record = replay_grid(config, candidate, [theta0_deg], [omega0], target_deg=target_deg,
                              currents=currents, duration_s=duration_s, stride=10)[0]

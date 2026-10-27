@@ -1,15 +1,16 @@
-"""Validate active ABC paths, English genome descriptions and documented Python APIs.
+"""Validate active ABCD paths, English genome descriptions and documented Python APIs.
 
 Historical reports, frozen snapshots and archived documentation remain records
 of earlier protocols and are excluded from active-layout validation.
 """
 import ast
+import argparse
 import json
 from pathlib import Path
 import re
 from urllib.parse import unquote, urlsplit
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 EXPERIMENTS = ROOT / 'experiments'
 EXCLUDED = {'results', '__pycache__', '.ipynb_checkpoints'}
 
@@ -17,6 +18,7 @@ EXCLUDED = {'results', '__pycache__', '.ipynb_checkpoints'}
 def documentation_files():
     """List current layout documents without scanning historical result trees."""
     roots = [ROOT/name for name in ('README.md', 'README.en.md', 'DEVELOPMENT.md', 'DEVELOPMENT.en.md')]
+    roots += sorted((ROOT / 'tools').glob('*.md'))
     return sorted(roots + [p for p in EXPERIMENTS.rglob('*.md')
                            if not EXCLUDED.intersection(p.relative_to(EXPERIMENTS).parts)])
 
@@ -31,8 +33,13 @@ def local_links(document):
 
 
 def main():
-    """Check the three active experiments, notebook files and all field descriptions."""
-    expected = {'A_balance', 'B_balance', 'C_setpoint_balance'}
+    """Check the four active experiments, notebook files and all field descriptions."""
+    parser = argparse.ArgumentParser(description=__doc__)
+    parser.add_argument('--allow-notebook-outputs', action='store_true',
+                        help='Report local notebook output without clearing it or failing validation')
+    args = parser.parse_args()
+    notebooks_with_outputs = []
+    expected = {'A_balance', 'B_balance', 'C_setpoint_balance', 'D_trajectory'}
     assert {p.name for p in EXPERIMENTS.iterdir() if p.is_dir() and p.name not in EXCLUDED} == expected | {'core'}
     for name in expected:
         folder = EXPERIMENTS/name
@@ -45,11 +52,14 @@ def main():
             for key in ('description', 'unit', 'system_parameter'):
                 assert field[key] and not re.search('[А-Яа-яЁё]', field[key]), (name,field['name'],key)
         notebook = json.loads((folder/'explore_genome.ipynb').read_text())
+        if any(cell.get('outputs') for cell in notebook['cells']):
+            notebooks_with_outputs.append(name+'/explore_genome.ipynb')
         assert notebook['metadata']['kernelspec']['name'] == 'spikingnn'
         for cell in notebook['cells']:
             if cell['cell_type'] == 'code':
                 ast.parse(''.join(cell['source']))
-                assert not cell.get('outputs'), 'Keep committed notebooks free of generated output'
+                if not args.allow_notebook_outputs:
+                    assert not cell.get('outputs'), 'Keep committed notebooks free of generated output'
     missing, broken, undocumented, pairs, links, definitions = [], [], [], 0, 0, 0
     for document in documentation_files():
         if not document.name.endswith('.en.md'):
@@ -77,6 +87,7 @@ def main():
     summary = dict(status='failed' if missing or broken or undocumented else 'passed',
                    experiments=sorted(expected), bilingual_pairs=pairs, local_links_verified=links,
                    python_modules=len(sources), documented_definitions=definitions,
+                   notebooks_with_outputs=notebooks_with_outputs,
                    missing_translations=missing, broken_links=broken, missing_docstrings=undocumented)
     print(json.dumps(summary, ensure_ascii=False, indent=2))
     (ROOT/'report').mkdir(exist_ok=True)

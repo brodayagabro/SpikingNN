@@ -10,10 +10,10 @@ import runpy
 import shutil
 import sys
 
-REPO=Path(__file__).resolve().parents[2]
+REPO=Path(__file__).resolve().parents[3]
 BASE=REPO/'scripts/AfferentBalance2026'
 sys.path.insert(0, str(REPO))
-from scripts.AfferentBalance2026.runtime_support import (
+from scripts.AfferentBalance2026.tools.runtime_support import (
     activate_runtime, core_module, current_results, resolve_recorded_path,
     runtime_directory, runtime_package_directory)
 

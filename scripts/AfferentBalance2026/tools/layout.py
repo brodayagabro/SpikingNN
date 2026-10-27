@@ -11,7 +11,7 @@ if __package__:
 else:
     from runtime_support import resolve_recorded_path
 
-ROOT = Path(__file__).resolve().parent
+ROOT = Path(__file__).resolve().parents[1]
 REPO = ROOT.parents[1]
 EXPERIMENTS = ROOT / "experiments"
 

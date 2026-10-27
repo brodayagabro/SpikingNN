@@ -1,6 +1,6 @@
 """Shared full-Afferents dynamics, explicit mechanics and initial-condition banks.
 
-This module has one Numba integrator and one independent library replay. Inputs
+All episode and streaming integrators share one Numba physical step. Inputs
 are the 52-field genome and two external currents. There is no PD controller.
 """
 import numpy as np
@@ -141,12 +141,16 @@ def reference_trace(physical, case, mechanics, *, currents=(0., 0.), duration_s=
     reset = np.zeros(26)
     reset[1:3], reset[5:7], reset[7:9] = case[1:3], p[4:6], p[4:6]*p[2:4]
     history = [reset]
+    steps = round(duration_s * 1000 / DT_MS)
+    currents = np.asarray(currents, dtype=float)
+    if currents.shape not in ((2,), (steps, 2)) or not np.isfinite(currents).all():
+        raise ValueError('Expected two constant currents or one pair per integration interval')
     kick_step = round(case[3] * 1000 / DT_MS) if case[3] >= 0 else -1
-    for step in range(round(duration_s * 1000 / DT_MS)):
+    for step in range(steps):
         if step == kick_step:
             limb.w += case[4]
             limb.w_prev = limb.w
-        net.step(dt=DT_MS, Iapp=np.asarray(currents), Iaff=aff)
+        net.step(dt=DT_MS, Iapp=currents if currents.ndim == 1 else currents[step], Iaff=aff)
         for i, muscle in enumerate(muscles):
             muscle.step(dt=DT_MS, u=net.V_out[i])
         limb.step(dt=DT_MS, F_flex=muscles[0].F, F_ext=muscles[1].F)
@@ -197,12 +201,91 @@ def afferent_values(velocity, length, force, activation, length_threshold,
 
 
 @njit(cache=True)
+def initial_state(p, theta_rad, omega_rad_s):
+    """Reset the complete physical state without discarding hidden neural variables.
+
+    State layout: q=0, omega=1, V=2:4, U=4:6, synapses=6:10,
+    spikes=10:12, calcium=12:14, forces=14:16, afferents=16:22,
+    activation=22:24, torque=24. The internal q includes the library offset.
+    """
+    state = np.zeros(25)
+    state[0], state[1] = TARGET + theta_rad, omega_rad_s
+    state[2:4], state[4:6] = p[4:6], p[4:6] * p[2:4]
+    return state
+
+
+@njit(cache=True, inline="always")
+def physical_step(p, mechanics, receptors, state, currents):
+    """Advance the complete state in place by 0.1 ms using two applied currents.
+
+    Both spike outputs remain from the previous step until both neurons have
+    updated. Afferents are evaluated after mechanics and feed the following
+    neural step, matching the original library update order.
+    """
+    dt_ms = DT_MS
+    mass, length, viscosity, gravity = mechanics
+    a1, a2 = p[46], p[47]
+    inertia = mass * length**2 / 3
+    output0, output1 = 0., 0.
+    for i in range(2):
+        feedback = 0.
+        for j in range(6):
+            feedback += p[30+6*i+j] * state[16+j]
+        current = currents[i] + feedback
+        v, u = state[2+i], state[4+i]
+        if v >= 30:
+            new_v, new_u = p[4+i], u + p[6+i]
+        else:
+            new_v = v + dt_ms * (.04*v**2 + 5*v + 140 - u + current + (state[6+2*i] + state[7+2*i]))
+            new_u = u + dt_ms * p[i] * (p[2+i]*v - u)
+        for j in range(2):
+            index = 6+2*i+j
+            state[index] += dt_ms * (-state[index]*(1/p[12+2*i+j]) + p[8+2*i+j]*state[10+j])
+        state[2+i], state[4+i] = 31. if new_v >= 30 else new_v, new_u
+        if i == 0:
+            output0 = 30. if new_v >= 30 else 0.
+        else:
+            output1 = 30. if new_v >= 30 else 0.
+    state[10], state[11] = output0, output1
+    for i in range(2):
+        k = 16+7*i
+        drive = p[48+2*i]*state[10] + p[49+2*i]*state[11]
+        state[12+i] += dt_ms * (p[k]*drive - state[12+i]*(1/p[k+3]))
+        state[22+i] = state[12+i]**p[k+5] / (state[12+i]**p[k+5] + p[k+6]**p[k+5])
+        state[14+i] += dt_ms * (p[k+2]*p[k+1]*state[22+i] - state[14+i]*(1/p[k+4]))
+    q, omega = state[0], state[1]
+    lf = np.sqrt(a1*a1 + a2*a2 - 2*a1*a2*np.cos(q))
+    le = np.sqrt(a1*a1 + a2*a2 - 2*a1*a2*np.cos(np.pi-q))
+    hf, he = a1*a2*np.sin(q)/lf, a1*a2*np.sin(np.pi-q)/le
+    # Positive tension shortens a tendon: M_i = -F_i * dL_i/dq.
+    torque = -state[14]*hf + state[15]*he
+    next_omega = omega + .001*dt_ms * (.5*gravity*mass*length*np.cos(q) - viscosity*omega + torque)/inertia
+    q += .001*dt_ms * omega
+    omega = next_omega
+    state[0], state[1], state[24] = q, omega, torque
+    lf = np.sqrt(a1*a1 + a2*a2 - 2*a1*a2*np.cos(q))
+    le = np.sqrt(a1*a1 + a2*a2 - 2*a1*a2*np.cos(np.pi-q))
+    vf = a1*a2*np.sin(q)/lf * omega
+    ve = -a1*a2*np.sin(np.pi-q)/le * omega
+    for i in range(2):
+        size, velocity = (lf, vf) if i == 0 else (le, ve)
+        state[16+3*i], state[17+3*i], state[18+3*i] = afferent_values(
+            velocity, size, state[14+i], state[22+i], p[42+i], p[44+i], receptors)
+
+
+@njit(cache=True, inline="always")
+def write_state(row, state, time_s):
+    """Write one state into the existing public 26-column trace layout."""
+    row[0], row[1], row[2] = time_s, state[0]-TARGET, state[1]
+    row[3:5], row[5:7], row[7:9] = state[14:16], state[2:4], state[4:6]
+    row[9:11], row[11:17], row[17:19] = state[12:14], state[16:22], state[22:24]
+    row[19:21], row[21:25], row[25] = state[10:12], state[6:10], state[24]
+
+
+@njit(cache=True)
 def _integrate(p, case, currents, mechanics, receptors, duration_s, stride):
     """Integrate fixed-step neural dynamics; all changing physical inputs are explicit."""
     dt_ms = DT_MS
-    MASS, LENGTH, VISCOSITY, GRAVITY = mechanics
-    A1, A2 = p[46], p[47]
-    INERTIA = MASS * LENGTH**2 / 3
     target_rad = case[0]
     case = case[1:]
     angle_limit = ANGLE_LIMIT
@@ -213,16 +296,10 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride):
     steps = int(round(duration_s * 1000 / dt_ms))
     trace = np.zeros(((steps + max(stride, 1) - 1) // max(stride, 1) + 2 if stride else 0, 26))
     row = 1 if stride else 0
-    q, omega = TARGET + case[0], case[1]
-    v, u = p[4:6].copy(), p[4:6] * p[2:4]
-    syn = np.zeros((2, 2))
-    output = np.zeros(2)
-    new_output = np.zeros(2)
-    calcium, force, aff = np.zeros(2), np.zeros(2), np.zeros(6)
-    activation = np.zeros(2)
+    state = initial_state(p, case[0], case[1])
     if stride:
         trace[0, 1:3] = case[:2]
-        trace[0, 5:7], trace[0, 7:9] = v, u
+        trace[0, 5:7], trace[0, 7:9] = state[2:4], state[4:6]
     reward, error2, peak, effort = 0., 0., abs(case[0]-target_rad), 0.
     kick_step = int(round(case[2] * 1000 / dt_ms)) if case[2] >= 0 else -1
     completed = 0
@@ -234,59 +311,21 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride):
     for step in range(steps):
         # A kick changes velocity before this step; it is external to the controller.
         if step == kick_step:
-            omega += case[3]
-        for i in range(2):
-            feedback = 0.
-            for j in range(6):
-                feedback += p[30+6*i+j] * aff[j]
-            current = currents[i] + feedback
-            if v[i] >= 30:
-                new_v, new_u = p[4+i], u[i] + p[6+i]
-            else:
-                new_v = v[i] + dt_ms * (.04*v[i]**2 + 5*v[i] + 140 - u[i] + current + (syn[i, 0] + syn[i, 1]))
-                new_u = u[i] + dt_ms * p[i] * (p[2+i]*v[i] - u[i])
-            for j in range(2):
-                syn[i, j] += dt_ms * (-syn[i, j]*(1/p[12+2*i+j]) + p[8+2*i+j]*output[j])
-            v[i], u[i] = 31. if new_v >= 30 else new_v, new_u
-            new_output[i] = 30. if new_v >= 30 else 0.
-        output, new_output = new_output, output
-        for i in range(2):
-            k = 16 + 7*i
-            drive = p[48+2*i]*output[0] + p[49+2*i]*output[1]
-            calcium[i] += dt_ms * (p[k]*drive - calcium[i]*(1/p[k+3]))
-            activation[i] = calcium[i]**p[k+5] / (calcium[i]**p[k+5] + p[k+6]**p[k+5])
-            force[i] += dt_ms * (p[k+2]*p[k+1]*activation[i] - force[i]*(1/p[k+4]))
-
-        lf = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(q))
-        le = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(np.pi-q))
-        hf, he = A1*A2*np.sin(q)/lf, A1*A2*np.sin(np.pi-q)/le
-        # Positive tension shortens a tendon: M_i = -F_i * dL_i/dq.
-        torque = -force[0]*hf + force[1]*he
-        next_omega = omega + .001*dt_ms * (.5*GRAVITY*MASS*LENGTH*np.cos(q) - VISCOSITY*omega + torque)/INERTIA
-        q += .001*dt_ms * omega
-        omega = next_omega
-        # Same post-mechanical-step afferents and one-step feedback delay as core.
-        lf = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(q))
-        le = np.sqrt(A1*A1 + A2*A2 - 2*A1*A2*np.cos(np.pi-q))
-        vf = A1*A2*np.sin(q)/lf * omega
-        ve = -A1*A2*np.sin(np.pi-q)/le * omega
-        for i in range(2):
-            length, velocity = (lf, vf) if i == 0 else (le, ve)
-            aff[3*i], aff[3*i+1], aff[3*i+2] = afferent_values(
-                velocity, length, force[i], activation[i], p[42+i], p[44+i], receptors)
-        theta = q - TARGET
+            state[1] += case[3]
+        physical_step(p, mechanics, receptors, state, currents)
+        theta, omega = state[0]-TARGET, state[1]
         completed = step + 1
         finite = np.isfinite(theta) and np.isfinite(omega)
         for i in range(2):
-            finite = finite and np.isfinite(v[i]) and np.isfinite(u[i]) and np.isfinite(force[i]) and np.isfinite(calcium[i])
+            finite = finite and np.isfinite(state[2+i]) and np.isfinite(state[4+i]) and np.isfinite(state[14+i]) and np.isfinite(state[12+i])
         for i in range(6):
-            finite = finite and np.isfinite(aff[i])
+            finite = finite and np.isfinite(state[16+i])
         if not finite:
             return np.array([-1., completed*dt_ms/1000, angle_limit, angle_limit, 0., 0., duration_s, angle_limit, angle_limit]), trace[:row]
         error = theta-target_rad
         error2 += error*error
         peak = max(peak, abs(error))
-        effort += force[0] + force[1]
+        effort += state[14] + state[15]
         if abs(error) > SETTLE_ANGLE or abs(omega) > SETTLE_SPEED:
             last_outside = completed*dt_ms/1000
         reward += max(0., np.exp(-(error/np.deg2rad(15.))**2) - .05*min(omega*omega, 4.))
@@ -295,13 +334,7 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride):
             late_error2 += error*error
             late_count += 1
         if stride and (step % stride == 0 or step == steps-1 or abs(theta) > angle_limit):
-            trace[row, 0:5] = np.array([completed*dt_ms/1000, theta, omega, force[0], force[1]])
-            trace[row, 5:7], trace[row, 7:9] = v, u
-            trace[row, 9:11], trace[row, 11:17] = calcium, aff
-            trace[row, 17:19] = activation
-            trace[row, 19:21] = output
-            trace[row, 21:25] = syn.reshape(4)
-            trace[row, 25] = torque
+            write_state(trace[row], state, completed*dt_ms/1000)
             row += 1
         if abs(theta) > angle_limit:
             break

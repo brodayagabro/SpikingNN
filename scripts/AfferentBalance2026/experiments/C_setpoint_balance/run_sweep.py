@@ -1,4 +1,4 @@
-"""Replay the fixed C controller over targets and initial conditions, without training."""
+"""Replay C grids or compare explicit joint/staged training methods and GA settings."""
 from pathlib import Path
 import sys
 

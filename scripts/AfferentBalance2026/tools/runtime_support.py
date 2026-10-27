@@ -10,7 +10,7 @@ import json
 from pathlib import Path
 import sys
 
-BASE = Path(__file__).resolve().parent
+BASE = Path(__file__).resolve().parents[1]
 REPO = BASE.parents[1]
 LEGACY_PACKAGE = "SteppingReflexGA"
 CURRENT_PACKAGE = "AfferentBalance2026"

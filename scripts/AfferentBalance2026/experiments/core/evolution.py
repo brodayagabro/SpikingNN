@@ -2,6 +2,7 @@
 from dataclasses import asdict, dataclass
 import time
 import numpy as np
+from tqdm import tqdm
 
 
 def reflect(unit):
@@ -139,20 +140,22 @@ def optimize(center, evaluate, *, size=30, generations=100, seed=42,
         population = reproduce(population, resume_state["scores"], rng,
                                *schedule.at(first, horizon))
     started = time.monotonic() - elapsed
-    for generation in range(first, generations+1):
-        scores, metrics = evaluate(population)
-        leader = int(np.argmax(scores))
-        sigma, probability = schedule.at(generation, horizon)
-        row = dict(generation=generation, evaluations=generation*size,
-                   best_fitness=float(scores[leader]), median_fitness=float(np.median(scores)),
-                   best_success=float(metrics[leader, :, 5].mean()),
-                   diversity=float(population.std(axis=0).mean()), mutation_sigma=sigma,
-                   mutation_probability=probability, elapsed_s=time.monotonic()-started)
-        history.append(row)
-        if on_generation:
-            on_generation(history)
-        if on_state:
-            on_state(generation, population, scores, metrics, history, rng.bit_generator.state)
-        if generation < generations:
-            population = reproduce(population, scores, rng, *schedule.at(generation+1, horizon))
+    with tqdm(total=generations, initial=first - 1, desc="Optimizing") as pbar:
+        for generation in range(first, generations+1):
+            scores, metrics = evaluate(population)
+            leader = int(np.argmax(scores))
+            sigma, probability = schedule.at(generation, horizon)
+            row = dict(generation=generation, evaluations=generation*size,
+                       best_fitness=float(scores[leader]), median_fitness=float(np.median(scores)),
+                       best_success=float(metrics[leader, :, 5].mean()),
+                       diversity=float(population.std(axis=0).mean()), mutation_sigma=sigma,
+                       mutation_probability=probability, elapsed_s=time.monotonic()-started)
+            history.append(row)
+            if on_generation:
+                on_generation(history)
+            if on_state:
+                on_state(generation, population, scores, metrics, history, rng.bit_generator.state)
+            if generation < generations:
+                population = reproduce(population, scores, rng, *schedule.at(generation+1, horizon))
+            pbar.update(1)
     return population, scores, metrics, history, rng.bit_generator.state

@@ -6,3 +6,26 @@
 !/report/README.md
 !/report/README.en.md
 !/report/analyze_historical_polynomial.py
+!/report/refresh_report.py
+
+# Keep the editable D notebook; numerical outputs stay under ignored results/.
+!/experiments/D_trajectory/explore_genome.ipynb
+!/experiments/D_trajectory/live_activity.ipynb
+
+# Convenient C exports are numerical results, even outside results/.
+/experiments/C_setpoint_balance/best_genome.json
+/experiments/C_setpoint_balance/phase_portraits/
+
+# Scientific article sources; computed reports/data remain ignored.
+!/report/build_retraining_article.py
+!/report/build_pdf.py
+!/report/article_body.ru.txt
+!/report/article_body.en.txt
+!/report/pdf_format.lua
+!/report/pdf_header.tex
+
+/experiments/D_trajectory/best_genome.json
+
+# Separate mirror-symmetry winners are computed artifacts as well.
+/experiments/C_setpoint_balance/best_genome_*_muscle*.json
+/experiments/D_trajectory/best_genome_*_muscle*.json

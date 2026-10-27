@@ -20,7 +20,7 @@ import numpy as np
 REPO = Path(__file__).resolve().parents[3]
 # Spawned workers inherit the legacy snapshot's regular ``scripts`` package.
 # Import the live path resolver directly, without relying on that namespace.
-sys.path.insert(0, str(Path(__file__).resolve().parents[1]))
+sys.path.insert(0, str(Path(__file__).resolve().parents[1] / 'tools'))
 from runtime_support import (
     BASE, activate_runtime, core_module, current_results, runtime_directory,
 )

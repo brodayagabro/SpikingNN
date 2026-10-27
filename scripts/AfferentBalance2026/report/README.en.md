@@ -1,55 +1,25 @@
-> October 21, 2026: numerical data for this historical series were moved to the desktop trash at the user’s request. Restore them using `archive/cleanup_results_20261021.json` to rebuild historical figures. New data live in `experiments/*/results/`.
+<!-- mirror-symmetry-results -->
 
-[Русский](README.md)
+[Detailed supplement: symmetric C/D](MIRROR_SYMMETRY.en.md). This series is also included in the main article: §2.10 describes constraints and training, §4.2 provides comparisons and two figures, and §7.2 lists exact commands. The asymmetric series remains in §4.1 for comparison.
 
-# Report on the full Afferents model without ×10
+# Current scientific report
 
-[REPORT.md](REPORT.en.md) and [REPORT.pdf](REPORT.pdf) describe the recomputation
-of 16 October 2026: physical muscle torque without amplification, a 0.1 ms step,
-full Afferents and neural control without PD.
+[PDF](REPORT.pdf) · [English article](REPORT.en.md) · [Russian article](REPORT.md) · [Genome appendix](APPENDIX_PARAMETERS.en.md)
 
-The `results/recompute_unscaled_20261016` series contains 39 training histories,
-6900 generations, final populations and complete wide-angle trajectories.
-Failed trials remain included in the results.
+The report covers corrected tensile mechanics, full nonlinear Afferents and the 26 October 2026 retraining of A–D. It includes all model equations, genetic algorithm steps, conditional analytical stability, independent test results, phase grids, neuronal/muscle/afferent signals and exact commands with option meanings. Muscle A is fixed at 0.37 in every main experiment.
 
-## Main files
+The two symmetry figures show +45° holding across an initial-condition grid and the first held-out sinusoidal tracking example. Each includes phase trajectories, angles, neuronal potentials, muscle forces, afferents and currents. Target-dependent C success and the remaining strict-criterion failure in D are stated explicitly. Figures use stored numerical calculations rather than schematic trajectories.
 
-- [Interactive article figures](article_figures.ipynb): editable A–D panels,
-  scenario selection and PNG/PDF/SVG export from saved trajectories.
-  [Instructions and protocol](../ARTICLE_FIGURES.en.md).
-- [Summary](results/recompute_unscaled_20261016/summary.json).
-- [Generation audit](results/recompute_unscaled_20261016/history_verification.json).
-- [Notebook verification](results/recompute_unscaled_20261016/notebook_verification.json).
-- [Report provenance](results/recompute_unscaled_20261016/report_verification.json).
-- [Winner parameters](APPENDIX_PARAMETERS.en.md).
-- [Analytical controllability and holding estimates](ANALYTICAL_CONTROL.en.md):
-  recovered from the historical report and recomputed without ×10; section 27 of the current report.
-- [Numerical checks of the analytical formulas](analytical/estimates.json)
-  and [checking script](../analytical_control.py).
-- [Generation notebook](../notebooks/training_phase_trajectories.ipynb).
-- [Calculation-file map](../archive/pre_ABC_20261020/experiments/RECOMPUTE_UNSCALED.en.md).
+`article_body.en.txt` and `article_body.ru.txt` contain the scientific prose. `build_retraining_article.py` inserts verified numerical tables and figures from completed runs. `build_pdf.py` typesets the Russian article and full genome appendix. `refresh_report.py` routes to the current builder. Numerical outputs remain under `results/muscle_tau50_20261026/`; its `manifest.json` records selected runs and hashes. Its `mirror_symmetry` entry records separate symmetric winners, the comparison JSON, source metrics and both figure files; the comparison itself is in `results/mirror_symmetry_20261026/comparison.json`. `previous_report/` preserves the old report. Historical figures in other directories are not evidence for the corrected model.
 
-Verification records refer to document versions at build time. Translation and
-link updates do not alter numerical NPZ/CSV files or frozen runtime sources.
-
-## Build
+Run from the repository root:
 
 ```bash
-.venv/bin/python scripts/AfferentBalance2026/analyze_unscaled.py
-.venv/bin/python scripts/AfferentBalance2026/report/build_pdf.py --pandoc /path/to/pandoc
+.venv/bin/python scripts/AfferentBalance2026/report/build_retraining_article.py
+.venv/bin/python scripts/AfferentBalance2026/report/build_pdf.py \
+  --pandoc /home/nickolai/miniconda3/envs/CPG/bin/pandoc
 ```
 
-Analysis verifies saved data, creates figures and assembles the Russian report
-without retraining. `build_pdf.py` only typesets it with Pandoc and LuaLaTeX.
-The English Markdown edition is adjacent to the Russian source; this builder
-does not produce a separate English PDF.
+Simulation and phase-figure commands are fully described in section 7 of the article. Rebuilding the article does not train models. Never use `--allow-incomplete` for a final report; it is a development preview.
 
-Historical ×10 results, old PDFs and rendered presentation files were moved
-to the trash. Builder sources, the TeX article and system diagrams remain;
-historical builds require their data to be restored.
-See the [cleanup audit](results/cleanup_factor10_20261017.json).
-Historical analytical excerpts are recovered separately:
-[original text](analytical/legacy_excerpt.txt),
-[provenance](analytical/legacy_source.json).
-
-[10×10 phase grids and oscillograms, 19 October](results/article_phase_grid_20261019/README.en.md).
+The current series constrains both muscles to tau_c ∈ [50,100] ms and tau_1 ∈ [50,200] ms. Previous winners remain under each experiment’s `results/tensile_retrain_20261026/`; the preceding report is archived in `results/muscle_tau50_20261026/previous_report/`. The comparison table distinguishes old and new domains.

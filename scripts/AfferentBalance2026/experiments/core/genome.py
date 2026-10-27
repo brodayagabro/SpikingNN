@@ -2,6 +2,8 @@
 
 Applied currents are simulation inputs, not genes. Every saved genome embeds its
 configuration, so geometry and search bounds survive outside the experiment folder.
+Controller fields may also be fixed: B keeps both muscle A values at 0.37,
+leaving 48 mutable coordinates while retaining all 52 physical fields.
 """
 from copy import deepcopy
 import hashlib
@@ -37,6 +39,26 @@ NAMES = (
 )
 MECHANICAL_NAMES = ("mass_kg", "length_m", "viscosity", "gravity_m_s2")
 
+# Reflection swaps neurons and muscles simultaneously. Matrix connections swap
+# BOTH axes; afferent channels swap the two three-channel muscle blocks.
+# Geometry a1/a2 are distinct attachment distances, not a flexor/extensor pair.
+MIRROR_INDICES = np.array([
+    1, 0, 3, 2, 5, 4, 7, 6, 11, 10, 9, 8, 15, 14, 13, 12,
+    *range(23, 30), *range(16, 23),
+    39, 40, 41, 36, 37, 38, 33, 34, 35, 30, 31, 32,
+    43, 42, 45, 44, 46, 47, 51, 50, 49, 48,
+])
+
+
+def project_mirror(physical):
+    """Average each reflected physical pair; leave both geometry values intact.
+
+    This is an explicit warm-start projection, not an operation performed while
+    loading historical genomes. It does not preserve the original performance.
+    """
+    p = GenomeConfig.validate_physical(physical)
+    return .5 * (p + p[MIRROR_INDICES])
+
 
 def write_json(path, value):
     """Write finite UTF-8 JSON atomically, preserving valid numerical metadata."""
@@ -55,8 +77,10 @@ def file_hash(path):
 class GenomeConfig:
     """Load named parameters and map mutable coordinates to physical values.
 
-    ``decode`` inserts fixed geometry after genetic operations. ``encode`` rejects
-    geometry mismatches and values outside this experiment's physical bounds.
+    ``decode`` inserts all fixed fields after genetic operations. ``encode`` rejects
+    fixed-value mismatches and values outside this experiment's physical bounds.
+    Optional ``mirror_symmetry`` ties reflected fields to one search coordinate;
+    ``free`` lists independent representatives and ``mutable`` lists both members.
     All configuration values are copied; callers cannot change a running domain
     by editing the input dictionary.
     """
@@ -78,7 +102,18 @@ class GenomeConfig:
             raise ValueError("Nonfinite genome value")
         if any(fields[i]["mutable"] for i in GEOMETRY_INDICES):
             raise ValueError("a1 and a2 are fixed hyperparameters and cannot mutate")
-        self.free = np.array([i for i, p in enumerate(fields) if p["mutable"]], dtype=int)
+        self.mirror_symmetry = data.get("mirror_symmetry", False)
+        if not isinstance(self.mirror_symmetry, bool):
+            raise ValueError("mirror_symmetry must be a boolean")
+        self.mutable = np.array([i for i, p in enumerate(fields) if p["mutable"]], dtype=int)
+        if self.mirror_symmetry:
+            for i, j in enumerate(MIRROR_INDICES):
+                for key in ("mutable", "minimum", "maximum", "scale"):
+                    if fields[i].get(key) != fields[j].get(key):
+                        raise ValueError(f"Reflected fields require identical {key}: {NAMES[i]}, {NAMES[j]}")
+            self.free = np.array([i for i in self.mutable if i <= MIRROR_INDICES[i]], dtype=int)
+        else:
+            self.free = self.mutable.copy()
         if not len(self.free):
             raise ValueError("At least one controller parameter must be mutable")
         self.log = np.array([fields[i].get("scale") == "log" for i in self.free])
@@ -98,17 +133,21 @@ class GenomeConfig:
             raise ValueError("Invalid mass, link length, viscosity or gravity")
         self.validate_physical(self.initial_physical)
         self.encode(self.initial_physical)
-        expected_cap = {"A_balance": 1., "B_balance": .02}.get(data.get("experiment"))
+        expected_cap = {"A_balance": 1., "B_balance": .1}.get(data.get("experiment"))
         if expected_cap is not None:
             for i in WEIGHT_INDICES:
                 field = fields[i]
                 cap = field["maximum"] if field["mutable"] else field["value"]
-                if cap > expected_cap:
-                    raise ValueError(f"{data['experiment']} requires w <= {expected_cap}")
+                # Older B snapshots with a 0.02 cap remain readable. The live
+                # JSON defines the restored lower bound and strict upper bound.
+                strict = data['experiment'] == 'B_balance'
+                if cap > expected_cap or (strict and cap == expected_cap):
+                    relation = '<' if strict else '<='
+                    raise ValueError(f"{data['experiment']} requires w {relation} {expected_cap}")
 
     @property
     def size(self):
-        """Return the number of free search coordinates; fixed fields are excluded."""
+        """Return independent coordinates, excluding fixed fields and tied duplicates."""
         return len(self.free)
 
     @property
@@ -144,14 +183,18 @@ class GenomeConfig:
         p = self.initial_physical.copy()
         # Clip exp/log roundoff so inclusive upper bounds are respected exactly.
         p[self.free] = np.clip(values, self.minimum, self.maximum)
+        if self.mirror_symmetry:
+            p[MIRROR_INDICES[self.free]] = p[self.free]
         return p
 
     def encode(self, physical):
         """Encode values after checking search bounds and exact fixed hyperparameters."""
         p = self.validate_physical(physical)
-        fixed = np.setdiff1d(np.arange(SIZE), self.free)
+        fixed = np.setdiff1d(np.arange(SIZE), self.mutable)
         if not np.array_equal(p[fixed], self.initial_physical[fixed]):
             raise ValueError("Fixed parameters differ from genome_cfg.json")
+        if self.mirror_symmetry and not np.array_equal(p, p[MIRROR_INDICES]):
+            raise ValueError("Physical parameters violate exact mirror symmetry")
         values = p[self.free].copy()
         if np.any(values < self.minimum) or np.any(values > self.maximum):
             raise ValueError("Physical values exceed this experiment's bounds")

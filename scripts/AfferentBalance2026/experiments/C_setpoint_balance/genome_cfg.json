@@ -222,36 +222,33 @@
     {
       "index": 18,
       "name": "muscles.flexor.A",
-      "value": 0.0074,
-      "minimum": 0.001,
-      "maximum": 0.02,
-      "scale": "log",
-      "mutable": true,
-      "description": "Force generation rate per effective muscle unit; flexor muscle.",
+      "value": 0.37,
+      "mutable": false,
+      "description": "Force generation rate per effective muscle unit; flexor muscle. Fixed user-defined physiological parameter, excluded from mutation and crossover.",
       "system_parameter": "flexor.SimpleAdaptedMuscle.A (constructor parameter)",
       "unit": "N/ms"
     },
     {
       "index": 19,
       "name": "muscles.flexor.tau_c",
-      "value": 20,
-      "minimum": 5,
+      "value": 71.0,
+      "minimum": 50.0,
       "maximum": 100,
       "scale": "log",
       "mutable": true,
-      "description": "Calcium relaxation time; the library object stores its inverse; flexor muscle.",
+      "description": "Calcium relaxation time; the library object stores its inverse; flexor muscle. The C search lower bound is 5.1 ms, strictly above 5 ms. Current training lower bound: 50 ms.",
       "system_parameter": "flexor.SimpleAdaptedMuscle.tau_c (constructor parameter)",
       "unit": "ms"
     },
     {
       "index": 20,
       "name": "muscles.flexor.tau_1",
-      "value": 20,
-      "minimum": 5,
-      "maximum": 100,
+      "value": 130.0,
+      "minimum": 50.0,
+      "maximum": 200.0,
       "scale": "log",
       "mutable": true,
-      "description": "Force relaxation time; the library object stores its inverse; flexor muscle.",
+      "description": "Force relaxation time; the library object stores its inverse; flexor muscle. The C search lower bound is 5.1 ms, strictly above 5 ms. Current training lower bound: 50 ms; domain includes 130 ms.",
       "system_parameter": "flexor.SimpleAdaptedMuscle.tau_1 (constructor parameter)",
       "unit": "ms"
     },
@@ -306,36 +303,33 @@
     {
       "index": 25,
       "name": "muscles.extensor.A",
-      "value": 0.0074,
-      "minimum": 0.001,
-      "maximum": 0.02,
-      "scale": "log",
-      "mutable": true,
-      "description": "Force generation rate per effective muscle unit; extensor muscle.",
+      "value": 0.37,
+      "mutable": false,
+      "description": "Force generation rate per effective muscle unit; extensor muscle. Fixed user-defined physiological parameter, excluded from mutation and crossover.",
       "system_parameter": "extensor.SimpleAdaptedMuscle.A (constructor parameter)",
       "unit": "N/ms"
     },
     {
       "index": 26,
       "name": "muscles.extensor.tau_c",
-      "value": 20,
-      "minimum": 5,
+      "value": 71.0,
+      "minimum": 50.0,
       "maximum": 100,
       "scale": "log",
       "mutable": true,
-      "description": "Calcium relaxation time; the library object stores its inverse; extensor muscle.",
+      "description": "Calcium relaxation time; the library object stores its inverse; extensor muscle. The C search lower bound is 5.1 ms, strictly above 5 ms. Current training lower bound: 50 ms.",
       "system_parameter": "extensor.SimpleAdaptedMuscle.tau_c (constructor parameter)",
       "unit": "ms"
     },
     {
       "index": 27,
       "name": "muscles.extensor.tau_1",
-      "value": 20,
-      "minimum": 5,
-      "maximum": 100,
+      "value": 130.0,
+      "minimum": 50.0,
+      "maximum": 200.0,
       "scale": "log",
       "mutable": true,
-      "description": "Force relaxation time; the library object stores its inverse; extensor muscle.",
+      "description": "Force relaxation time; the library object stores its inverse; extensor muscle. The C search lower bound is 5.1 ms, strictly above 5 ms. Current training lower bound: 50 ms; domain includes 130 ms.",
       "system_parameter": "extensor.SimpleAdaptedMuscle.tau_1 (constructor parameter)",
       "unit": "ms"
     },
@@ -629,7 +623,30 @@
     "gravity_m_s2": 9.81
   },
   "simulation": {
-    "duration_s": 10.0
+    "duration_s": 10.0,
+    "training_count": 8,
+    "validation_count": 12,
+    "test_count": 24,
+    "bank_seeds": {
+      "training": 2026102201,
+      "validation": 2026102202,
+      "test": 2026102223
+    },
+    "initial_conditions": {
+      "angle_range_deg": [
+        -50.0,
+        50.0
+      ],
+      "speed_range_rad_s": [
+        -1.0,
+        1.0
+      ]
+    },
+    "replay_angles_deg": [
+      -50.0,
+      0.0,
+      50.0
+    ]
   },
   "setpoint": {
     "targets_deg": [
@@ -643,6 +660,74 @@
       0.0,
       0.0
     ],
-    "training_enabled": false
+    "training_enabled": true,
+    "degree": 3,
+    "coefficient_bound_nA": 1000.0,
+    "table_current_bound_nA": 1000.0,
+    "validation_targets_deg": [
+      -45.0,
+      -33.75,
+      -22.5,
+      -11.25,
+      0.0,
+      11.25,
+      22.5,
+      33.75,
+      45.0
+    ],
+    "test_targets_deg": [
+      -45.0,
+      -39.375,
+      -33.75,
+      -28.125,
+      -22.5,
+      -16.875,
+      -11.25,
+      -5.625,
+      0.0,
+      5.625,
+      11.25,
+      16.875,
+      22.5,
+      28.125,
+      33.75,
+      39.375,
+      45.0
+    ],
+    "checkpoints": [
+      1,
+      30,
+      60,
+      100,
+      150,
+      200
+    ],
+    "seed_genome": "../B_balance/results/best_genome.json"
+  },
+  "ga": {
+    "population": 50,
+    "generations": 200,
+    "seed": 43,
+    "mutation_probability": 0.1,
+    "workers": 18
+  },
+  "sweep": {
+    "populations": [
+      50
+    ],
+    "mutation_probabilities": [
+      0.1
+    ],
+    "seeds": [
+      43
+    ],
+    "degrees": [
+      2,
+      3
+    ],
+    "methods": [
+      "joint",
+      "staged"
+    ]
   }
 }

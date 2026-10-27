@@ -47,7 +47,7 @@ Success requires survival and remaining within $|e|\le3^\circ$, $|\omega|\le0.35
 
 $$\mathcal F=0.50\operatorname{mean}(s)+0.30\operatorname{mean}(\text{worst }\lceil K/4\rceil\text{ scores})+0.20\min(s).$$
 
-The GA maximizes this same score in A/B. It searches 50 normalized coordinates in [0,1], with linear or logarithmic physical mappings from JSON. Elitism retains the top ceil(5%); tournaments sample three candidates; crossover mixes parents, Gaussian mutation is reflected at the bounds, and 5% of generated children are uniform immigrants. Mutation sigma decreases from 0.20 to 0.015 on a cosine schedule. Sweeps hold per-gene mutation probability constant. Fixed `a1/a2` are inserted after decoding, outside every genetic operation. The final population is ranked on independent validation cases; only its winner is scored on the independent test bank. Test outcomes do not guide training.
+The GA maximizes this same score in A/B/C. C aggregates it over all target/initial-state pairs. It searches normalized coordinates in [0,1]: 48 for both A and B, with linear or logarithmic physical mappings from JSON. Elitism retains the top ceil(5%); tournaments sample three candidates; crossover mixes parents, Gaussian mutation is reflected at the bounds, and 5% of generated children are uniform immigrants. Mutation sigma decreases from 0.20 to 0.015 on a cosine schedule. Sweeps hold per-gene mutation probability constant. Fixed `a1/a2`, plus both `A=0.37` values in A/B/C/D, are inserted after decoding, outside every genetic operation. The final population is ranked on independent validation cases; only its winner is scored on the independent test bank. Test outcomes do not guide training.
 
 ## Fixed field order
 
@@ -67,3 +67,20 @@ Indices are zero-based. All per-field descriptions and library parameter mapping
 | 48–51 | P[muscle, neuron] |
 
 Mass, link length, viscosity and gravity are configuration metadata, not genes. External currents are separate simulation inputs. Schema: `afferent_controller_52_v4`.
+
+## C: combined controller and current-law genome
+
+For each neuron, the constant episode command is
+
+$$I_i(\theta_*)=\sum_{k=0}^{d}c_{ik}u^k,\quad u=\theta_*/(\pi/4),\quad d\in\{2,3\}.$$
+
+The shared 52-field block is followed by coefficients in neuron-major, ascending-power order. C fixes `a1`, `a2` and both muscle `A=0.37` fields. A cubic therefore has 60 physical fields and 56 mutable coordinates; a quadratic has 58/54. Combined schema: `afferent_setpoint_joint_v1`. Polynomial coefficients are bounded at ±1000 nA; the polynomial output is not clipped and may exceed this value.
+
+Every candidate shares one controller across five training targets. A staged option replaces polynomial genes temporarily with ten target-specific currents, fits bounded least-squares polynomials in u, then jointly refines controller and coefficients. The fit approximates currents, so its dynamical performance is re-evaluated. Training uses 5×8 cases, polynomial validation 9×12 and test 17×24, with disjoint initial states. Eight test-only angles check generalization beyond training and validation targets. Each episode starts with reset internal states; this protocol does not test online switching between target commands. Total training generations are matched across methods; validation overhead can differ. No measured-state signal is added to the command law.
+
+## D extension: a moving reference
+
+[D_trajectory](D_trajectory/README.en.md) uses the same physics continuously: each step maps the desired angle into two polynomial currents, without resetting physical state. `AngleController.step/advance` provides the streaming interface. Desired angular velocity is used only for evaluation, never supplied to neurons. The static settling criterion is replaced by the explicit tracking criterion documented in D; robust aggregation remains shared.
+
+
+The 26 October corrected-mechanics retraining selects across validation checkpoints, including generation zero. Its full scientific description, actual commands and results are in [the current article](../report/REPORT.en.md). Historical sweep protocols above remain distinguishable from the new warm-start series. Applied-current units are model units; legacy nA key names do not establish physical calibration.

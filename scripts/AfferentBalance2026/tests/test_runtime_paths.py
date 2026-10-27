@@ -7,7 +7,7 @@ import sys
 
 import pytest
 
-from scripts.AfferentBalance2026 import runtime_support as runtime
+from scripts.AfferentBalance2026.tools import runtime_support as runtime
 
 
 def test_renamed_outer_directory_preserves_nested_historical_namespace(tmp_path, monkeypatch):
@@ -43,7 +43,7 @@ def test_verified_snapshot_imports_from_its_own_namespace(tmp_path, package):
                                     hashlib.sha256(source.read_bytes()).hexdigest()}}
     (tmp_path / "runtime_provenance.json").write_text(json.dumps(provenance))
     script = (
-        'from scripts.AfferentBalance2026.runtime_support import activate_runtime, core_module\n'
+        'from scripts.AfferentBalance2026.tools.runtime_support import activate_runtime, core_module\n'
         'import sys\n'
         'activate_runtime(sys.argv[1])\n'
         'module = core_module("config")\n'
@@ -99,7 +99,7 @@ def test_cross_namespace_numerical_mix_is_rejected(tmp_path):
     core.mkdir(parents=True)
     (tmp_path / 'runtime_provenance.json').write_text('{"runtime_sha256": {}}')
     script = (
-        'from scripts.AfferentBalance2026.runtime_support import activate_runtime\n'
+        'from scripts.AfferentBalance2026.tools.runtime_support import activate_runtime\n'
         'from scripts.AfferentBalance2026.experiments.core import genome\n'
         'import sys\n'
         'try:\n'
