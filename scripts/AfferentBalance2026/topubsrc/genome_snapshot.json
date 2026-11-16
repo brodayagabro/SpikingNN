@@ -1,0 +1,318 @@
+{
+  "schema": "afferent_genome_snapshot_v1",
+  "created_utc": "2026-11-16T14:57:42.983508+00:00",
+  "study": "cross_output_20261116",
+  "status": "provisional",
+  "completed_searches": 33,
+  "planned_searches": 43,
+  "selection": "Fast: maximum validation fitness among completed expanded runs; ties retain planned order. Slow and mirror: independent baseline runs.",
+  "test_used_for_selection": false,
+  "activity_used_for_selection": false,
+  "archive_genomes_used_for_training": false,
+  "completed_runs": [
+    "A_fast",
+    "B_fast",
+    "C_fast",
+    "A_slow",
+    "B_slow",
+    "C_slow",
+    "C_mirror",
+    "expanded_A/G200/N50_p0.1_seed42",
+    "expanded_B/G200/N50_p0.1_seed42",
+    "expanded_C/G200/N50_p0.1_seed42",
+    "expanded_A/G200/N50_p0.3_seed42",
+    "expanded_B/G200/N50_p0.3_seed42",
+    "expanded_C/G200/N50_p0.3_seed42",
+    "expanded_A/G200/N50_p0.1_seed43",
+    "expanded_B/G200/N50_p0.1_seed43",
+    "expanded_C/G200/N50_p0.1_seed43",
+    "expanded_A/G200/N50_p0.3_seed43",
+    "expanded_B/G200/N50_p0.3_seed43",
+    "expanded_C/G200/N50_p0.3_seed43",
+    "expanded_A/G500/N50_p0.1_seed42",
+    "expanded_B/G500/N50_p0.1_seed42",
+    "expanded_C/G500/N50_p0.1_seed42",
+    "expanded_A/G500/N50_p0.3_seed42",
+    "expanded_B/G500/N50_p0.3_seed42",
+    "expanded_C/G500/N50_p0.3_seed42",
+    "expanded_A/G500/N50_p0.1_seed43",
+    "expanded_B/G500/N50_p0.1_seed43",
+    "expanded_C/G500/N50_p0.1_seed43",
+    "expanded_A/G500/N50_p0.3_seed43",
+    "expanded_B/G500/N50_p0.3_seed43",
+    "expanded_C/G500/N50_p0.3_seed43",
+    "expanded_A/G1000/N50_p0.1_seed42",
+    "expanded_B/G1000/N50_p0.1_seed42"
+  ],
+  "genomes": [
+    {
+      "experiment": "A",
+      "profile": "fast",
+      "genome": "A_balance/genomes/fast.json",
+      "source_run": "fresh_results/expanded_A/G200/N50_p0.3_seed42",
+      "sha256": "6fb28d18442167bddc5de4fbc7b75c249a583c027d20f6f91345b6ed9c6b79a5",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 42,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10
+      },
+      "configuration_sha256": "ecd5c1c5744ce2edaeb6d98b7d9f3018cc377d4ff0376fd013c8aa3eb498ea8a",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train A --profile fast --population 50 --generations 200 --seed 42 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --output results/snapshot_A_fast"
+    },
+    {
+      "experiment": "A",
+      "profile": "slow",
+      "genome": "A_balance/genomes/slow.json",
+      "source_run": "fresh_results/A_slow",
+      "sha256": "f12f5569a62ebcd25de79bef2134895a809ac4c3ad2b38773390d2d250db5354",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 42,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10
+      },
+      "configuration_sha256": "069d6f9d1cb7e0020d3e7a9bd09670c4573bb0c3c0781e8c63cd7eb53bcdb7e2",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train A --profile slow --population 50 --generations 200 --seed 42 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --output results/snapshot_A_slow"
+    },
+    {
+      "experiment": "B",
+      "profile": "fast",
+      "genome": "B_balance/genomes/fast.json",
+      "source_run": "fresh_results/expanded_B/G500/N50_p0.1_seed42",
+      "sha256": "18b49eb9362883afce2a710688bbc43b7b2b9e7fd95e0d31357f9be71efb40ea",
+      "training": {
+        "population": 50,
+        "generations": 500,
+        "seed": 42,
+        "mutation_probability": 0.1,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10
+      },
+      "configuration_sha256": "56158d75f21aff0923789993efaddfd5c00b57d95d0eac623afcd5802928b30c",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train B --profile fast --population 50 --generations 500 --seed 42 --mutation-probability 0.1 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --output results/snapshot_B_fast"
+    },
+    {
+      "experiment": "B",
+      "profile": "slow",
+      "genome": "B_balance/genomes/slow.json",
+      "source_run": "fresh_results/B_slow",
+      "sha256": "12e1a667dd5b23f1ce40c1068f97215f10cb7dd60840ba72472eff0ab2df6f08",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 42,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10
+      },
+      "configuration_sha256": "f62bcf894e9fca6d748b94fe5a7b892ba118e08b8fd6c998d759acecd4acdad4",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train B --profile slow --population 50 --generations 200 --seed 42 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --output results/snapshot_B_slow"
+    },
+    {
+      "experiment": "C",
+      "profile": "fast",
+      "genome": "C_setpoint_balance/genomes/fast.json",
+      "source_run": "fresh_results/expanded_C/G200/N50_p0.3_seed43",
+      "sha256": "ca2bf64dcb8ffa3977675caba4be7b6330d9dbc978b83cb3bff24cb8255cec40",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 43,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10,
+        "method": "staged"
+      },
+      "configuration_sha256": "65f994c3fbd4189039364d6c2dfa54793378af49f63303bafead3a5dc9076627",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train C --profile fast --population 50 --generations 200 --seed 43 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --method staged --output results/snapshot_C_fast"
+    },
+    {
+      "experiment": "C",
+      "profile": "slow",
+      "genome": "C_setpoint_balance/genomes/slow.json",
+      "source_run": "fresh_results/C_slow",
+      "sha256": "48b94d22c80ea89ccb0f7d1b08b46c5fea2c67439423fb3dcf0cc92948bad4cd",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 43,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10,
+        "method": "joint"
+      },
+      "configuration_sha256": "76eb10d15484f7e08b150aa16599b511aa637c6570d85ea5aa7d02a0a29a53cd",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train C --profile slow --population 50 --generations 200 --seed 43 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --method joint --output results/snapshot_C_slow"
+    },
+    {
+      "experiment": "C",
+      "profile": "mirror",
+      "genome": "C_setpoint_balance/genomes/mirror.json",
+      "source_run": "fresh_results/C_mirror",
+      "sha256": "e0cba5b71e3c7250e7086f281abc3fe63e7c836c855fce74ba2d4af4b706de04",
+      "training": {
+        "population": 50,
+        "generations": 200,
+        "seed": 43,
+        "mutation_probability": 0.3,
+        "sigma_start": 0.2,
+        "sigma_end": 0.015,
+        "validation_every": 20,
+        "workers": 10,
+        "method": "joint"
+      },
+      "configuration_sha256": "5053ee2a4c8620f7dd2c4ce55565f93e077c2994b796759c47b49f5e1869a357",
+      "code_sha256": {
+        "A_balance/experiment.py": "681758730012a684d48684b1b04671e973e449439e360d24bf79422028d0d54f",
+        "B_balance/experiment.py": "143a2e8c9c8b978e8b1dd916f864569a01288087db20f84bec8923ad690c60ca",
+        "C_setpoint_balance/experiment.py": "c50544b1492b39698f04c032103dc80cc9d56164718c3bb9f5c886f9f6225f60",
+        "evolution.py": "bb6e4713ff7f85a019f81df446d03eb7f0693279bb7c97630aee9c35ca8eeddc",
+        "genome.py": "8c476556433b289d371ff4f60a8f8b5c17a0d8e62602cd6b4fd6b30f349b7136",
+        "model.py": "70c4a2142199ce21443491aecd895320089fbd8bfbf6b484e0793d9d781c0c0d",
+        "run.py": "084dd5517ac4c10a7f7957acc9574cf717c259ef854dc2e4275c3bd68f5e2a39",
+        "verify.py": "6a88a2bdf6584f6a15695a2197db480d2b3dc9e4144b15f19c6a907f0b673e15"
+      },
+      "environment": {
+        "python": "3.10.20",
+        "numpy": "2.2.5",
+        "numba": "0.68.1",
+        "scipy": "1.15.3",
+        "llvmlite": "0.50.0",
+        "platform": "Linux-7.0.0-38-generic-x86_64-with-glibc2.39",
+        "machine": "x86_64"
+      },
+      "reproduce_command": "python run.py train C --profile mirror --population 50 --generations 200 --seed 43 --mutation-probability 0.3 --sigma-start 0.2 --sigma-end 0.015 --validation-every 20 --workers 10 --method joint --output results/snapshot_C_mirror"
+    }
+  ]
+}

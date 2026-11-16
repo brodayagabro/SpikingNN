@@ -1,0 +1,8 @@
+# Verified with CPython 3.10.20 on Linux x86_64; see training_verification.json.
+numpy==2.2.5
+numba==0.68.1
+llvmlite==0.50.0
+scipy==1.15.3
+matplotlib==3.10.9
+jupyterlab==4.5.9
+ipykernel==7.2.0

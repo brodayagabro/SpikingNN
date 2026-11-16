@@ -38,6 +38,14 @@ NAMES = (
     *(f"output.P.{i}.{j}" for i in range(2) for j in range(2)),
 )
 MECHANICAL_NAMES = ("mass_kg", "length_m", "viscosity", "gravity_m_s2")
+GENE_INDICES = {name: index for index, name in enumerate(NAMES)}
+MUSCLE_INDICES = np.array([[GENE_INDICES[f'muscles.{side}.{key}']
+                            for key in ('w', 'N', 'A', 'tau_c', 'tau_1', 'm', 'k')]
+                           for side in ('flexor', 'extensor')])
+OUTPUT_INDICES = np.array([[GENE_INDICES[f'output.P.{i}.{j}'] for j in range(2)] for i in range(2)])
+FEEDBACK_INDICES = np.array([[GENE_INDICES[f'feedback.Q_aff.{i}.{channel}']
+                              for channel in ('Ia_F', 'II_F', 'Ib_F', 'Ia_E', 'II_E', 'Ib_E')]
+                             for i in range(2)])
 
 # Reflection swaps neurons and muscles simultaneously. Matrix connections swap
 # BOTH axes; afferent channels swap the two three-channel muscle blocks.
@@ -203,11 +211,15 @@ class GenomeConfig:
 
     def save(self, path, physical, **metadata):
         """Save a self-contained genome with descriptions, geometry and provenance."""
+        write_json(path, self.payload(physical, **metadata))
+
+    def payload(self, physical, **metadata):
+        """Return the portable legacy document without performing file I/O."""
         unit = self.encode(physical)
-        write_json(path, dict(schema=SCHEMA, configuration=self.data,
+        return dict(schema=SCHEMA, configuration=self.data,
                              configuration_sha256=self.signature, names=list(NAMES),
                              physical=np.asarray(physical).tolist(), normalized=unit.tolist(),
-                             metadata=metadata))
+                             metadata=metadata)
 
 
 def load_genome(path):
@@ -216,7 +228,7 @@ def load_genome(path):
     Historical arrays are rejected: their offsets 46/47 mean applied currents.
     Use ``import_legacy`` explicitly for a compatible historical controller.
     """
-    payload = json.loads(Path(path).read_text())
+    payload = path if isinstance(path, dict) else json.loads(Path(path).read_text())
     if payload.get("schema") != SCHEMA or tuple(payload.get("names", ())) != NAMES:
         raise ValueError("Not a current genome; historical files need explicit import_legacy")
     config = GenomeConfig(payload["configuration"])

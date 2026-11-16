@@ -1,0 +1,50 @@
+{
+  "schema": "afferent_experiment_run_v1",
+  "preset": "D_trajectory_tau50_v1",
+  "search": {
+    "population": 3,
+    "generations": 2,
+    "checkpoints": [
+      1,
+      2
+    ],
+    "validation_every": 1,
+    "method": "compare"
+  },
+  "runtime": {
+    "workers": 1
+  },
+  "storage": {
+    "recording_stride": 10,
+    "replay": true,
+    "figures": true,
+    "output": "../../results/smoke_D_compare"
+  },
+  "protocol": {
+    "replay": {
+      "angles_deg": [
+        -50,
+        0,
+        50
+      ],
+      "speeds_rad_s": [
+        0
+      ],
+      "duration_s": 0.02
+    },
+    "selection": "d_comparison_validation_v1",
+    "trajectory": {
+      "duration_s": 0.02,
+      "hold_s": 0.0,
+      "ramp_s": 0.001,
+      "training_count": 2,
+      "validation_count": 2,
+      "test_count": 2
+    }
+  },
+  "initialization": {
+    "sources": [
+      "../../results/smoke_C/solution.json"
+    ]
+  }
+}

@@ -56,6 +56,10 @@ class TrajectoryGenome:
 
     def save(self, path, unit, *, current_tau_s=0., **metadata):
         """Save a self-contained genome, English parameter mappings and provenance."""
+        write_json(path, self.payload(unit, current_tau_s=current_tau_s, **metadata))
+
+    def payload(self, unit, *, current_tau_s=0., **metadata):
+        """Return the complete trajectory document without file I/O."""
         if not np.isfinite(current_tau_s) or current_tau_s < 0:
             raise ValueError('Invalid command filter time')
         p, c = self.decode(unit)
@@ -69,17 +73,24 @@ class TrajectoryGenome:
                                scale='linear', unit='nA',
                                description=f'Coefficient of (desired angle / 45 degrees)**{power}; no measured-state dependence.',
                                system_parameter=f'Applied current to neuron {neuron}'))
-        write_json(path, dict(schema=SCHEMA, configuration=self.controller.data,
+        return dict(schema=SCHEMA, configuration=self.controller.data,
                               configuration_sha256=self.controller.signature,
                               names=list(self.names), parameters=fields,
                               physical=np.r_[p, c.ravel()].tolist(), normalized=np.asarray(unit).tolist(),
-                              current_tau_s=current_tau_s, metadata=metadata))
+                              current_tau_s=current_tau_s, metadata=metadata)
 
 
 def load_solution(path):
     """Read a saved C or D polynomial solution, returning physical inputs and metadata."""
-    path = Path(path)
-    data = json.loads(path.read_text())
+    data = path if isinstance(path, dict) else json.loads(Path(path).read_text())
+    if data.get('schema') in ('afferent_solution_v1', 'afferent_solution_pointer_v1'):
+        from ..core.artifacts import load_solution as load_portable
+        solution = load_portable(path)
+        if solution.kind != 'polynomial':
+            raise ValueError('Continuous angle commands require a polynomial solution')
+        c = np.zeros((2, 4))
+        c[:, :solution.command.shape[1]] = solution.command
+        return solution.config, solution.physical, c, solution.current_tau_s, solution.metadata
     if data.get('schema') == SCHEMA:
         genome = TrajectoryGenome(data['configuration'])
         if genome.controller.signature != data['configuration_sha256'] or list(genome.names) != data['names']:
@@ -91,7 +102,7 @@ def load_solution(path):
     else:
         # The legacy C codec is needed only at the import boundary, never per step.
         from ..C_setpoint_balance.joint_study import load_joint_genome
-        genome, unit = load_joint_genome(path)
+        genome, unit = load_joint_genome(data)
         if genome.kind != 'polynomial':
             raise ValueError('Continuous angle commands require a polynomial, not a lookup table')
         p, old = genome.decode(unit)

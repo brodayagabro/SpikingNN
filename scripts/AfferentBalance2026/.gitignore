@@ -1,4 +1,5 @@
 # Keep the editable article notebook and its data helpers; ignore report outputs.
+/results/
 !/report/
 /report/*
 !/report/article_figures.ipynb
@@ -29,3 +30,13 @@
 # Separate mirror-symmetry winners are computed artifacts as well.
 /experiments/C_setpoint_balance/best_genome_*_muscle*.json
 /experiments/D_trajectory/best_genome_*_muscle*.json
+
+# Editable manuscript and build tools, without computed figures or article outputs.
+!/report/Afferents2026/
+/report/Afferents2026/*
+!/report/Afferents2026/*.py
+!/report/Afferents2026/*.md
+!/report/Afferents2026/main.tex
+!/report/Afferents2026/authors.tex
+!/report/Afferents2026/references.bib
+!/report/Afferents2026/styles/

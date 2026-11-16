@@ -1,3 +1,11 @@
+# Current local workflow
+
+New commands and results use the shared executor. The material below preserves the earlier scientific protocols and findings.
+
+[Guide](../../docs/USER_GUIDE.en.md) · [Result schema](../../docs/RESULTS.en.md)
+
+---
+
 <!-- mirror-symmetry-20261026 -->
 
 Separate study: [exact reflection symmetry of controller and currents](../MIRROR_SYMMETRY.en.md). Outputs are in `results/mirror_symmetry_20261026/`; the previous canonical genome is preserved.

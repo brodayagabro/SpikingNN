@@ -1,3 +1,14 @@
+> Новая публикационная серия с ограничением перекрёстных P < 0,1 находится в расчёте. Прежняя сборка Afferents2026 удалена. Актуальные команды и статус: [topubsrc](../topubsrc/README.md). Большой отчёт ниже относится к историческому протоколу.
+
+# Explicit report inputs
+
+New runs use `python ../run.py report --manifest /absolute/run/manifest.json --output /new/report`.
+This reads saved results, does not retrain or publish, and records the manifest checksum.
+The dated article builder and scientific materials below retain their historical protocols; they are not defaults of the new workflow.
+[Guide](../docs/USER_GUIDE.en.md).
+
+---
+
 <!-- mirror-symmetry-results -->
 
 [Detailed supplement: symmetric C/D](MIRROR_SYMMETRY.en.md). This series is also included in the main article: §2.10 describes constraints and training, §4.2 provides comparisons and two figures, and §7.2 lists exact commands. The asymmetric series remains in §4.1 for comparison.

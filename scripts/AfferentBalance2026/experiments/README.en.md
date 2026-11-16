@@ -1,3 +1,11 @@
+# Current local workflow
+
+New commands and results use the shared executor. The material below preserves the earlier scientific protocols and findings.
+
+[Guide](../docs/USER_GUIDE.en.md) · [Result schema](../docs/RESULTS.en.md)
+
+---
+
 # Experiment layout
 
 [Русский](README.md)

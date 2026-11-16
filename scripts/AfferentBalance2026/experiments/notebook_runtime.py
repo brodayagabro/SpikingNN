@@ -12,7 +12,7 @@ import sys
 
 _PREFIX = 'scripts.AfferentBalance2026.experiments.'
 _MODULES = (
-    'core.genome', 'core.run', 'C_setpoint_balance.polynomial_study',
+    'core.genome', 'core.config', 'core.artifacts', 'core.run', 'C_setpoint_balance.polynomial_study',
     'C_setpoint_balance.joint_study', 'C_setpoint_balance.run_experiment',
     'D_trajectory.controller', 'D_trajectory.run_experiment',
     'D_trajectory', 'visualization',
@@ -93,3 +93,60 @@ def resolve_genome_path(experiment, path=None, *, variant='slow_muscle_mirrow'):
             return candidate.resolve()
     searched = ', '.join(str(candidate.resolve()) for candidate in choices)
     raise FileNotFoundError(f'Selected genome was not found: {searched}')
+
+
+# Correct spelling is preferred; the published historical filename stays intact.
+GENOME_VARIANTS['slow_muscle_mirror'] = GENOME_VARIANTS['slow_muscle_mirrow']
+_RUNTIME_HASHES = globals().get('_RUNTIME_HASHES', {})
+
+
+def check_runtime():
+    """Detect changed numerical sources; never auto-reload a running simulator."""
+    from .core.config import project_root
+    root = project_root()
+    paths = [root/'experiments/simulation.py', root/'experiments/core/genome.py',
+             root/'experiments/D_trajectory/trajectory.py', root/'experiments/D_trajectory/controller.py',
+             root/'experiments/C_setpoint_balance/joint_study.py']
+    hashes = {str(p):hashlib.sha256(p.read_bytes()).hexdigest() for p in paths}
+    for name, module in tuple(sys.modules.items()):
+        source = getattr(module, '__file__', None)
+        if name.startswith(_PREFIX) and source and not Path(source).resolve().is_relative_to(root):
+            raise RuntimeError('An archived experiment runtime is already imported. Restart the kernel before current-model replay.')
+    if _RUNTIME_HASHES and hashes != _RUNTIME_HASHES:
+        raise RuntimeError('Numerical/codec sources changed. Restart the Jupyter kernel before loading a solution; '
+                           'existing state cannot be mixed with a new or archived runtime.')
+    from .core import genome
+    if not hasattr(genome, 'MIRROR_INDICES'):
+        raise RuntimeError('Cached pre-mirror genome module. Restart the Jupyter kernel.')
+    _RUNTIME_HASHES.update(hashes)
+
+
+def select_solution(experiment, solution=None, *, variant='current', rank=1, smoke=False, initial=False):
+    """Load one common Solution, or an explicitly untrained in-memory smoke fixture.
+
+    Smoke mode never relies on ignored training results and never runs a GA.
+    Normal missing-file errors do not fall back to a different genome.
+    """
+    from .core.artifacts import load_solution, genome_payload, make_codec
+    from .core.genome import GenomeConfig
+    import numpy as np
+    check_runtime()
+    experiment = Path(experiment).resolve()
+    if smoke or initial:
+        cfg = GenomeConfig(experiment/'genome_cfg.json')
+        codec = make_codec(cfg, degree=cfg.data.get('setpoint', {}).get('degree', 3))
+        if cfg.data['experiment'][0] in 'AB':
+            unit = cfg.initial()
+        else:
+            unit = codec.encode(cfg.initial_physical, np.zeros((2, getattr(codec, 'width', 4))))
+        selected = load_solution(genome_payload(codec, unit, selection='untrained smoke fixture'))
+    else:
+        selected = load_solution(resolve_genome_path(experiment, solution, variant=variant), rank=rank)
+    print(selected.describe())
+    return selected
+
+
+def controller_input(solution):
+    """Return the selected path or an in-memory portable document for a smoke UI."""
+    from .core.artifacts import genome_payload
+    return solution.path if solution.path is not None else genome_payload(solution.codec, solution.unit, solution.current_tau_s)

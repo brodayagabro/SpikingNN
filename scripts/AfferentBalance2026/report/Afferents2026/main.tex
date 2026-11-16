@@ -1,0 +1,291 @@
+% Draft: constrained P-cross study, 2026-11-16; numerical results pending.
+\documentclass{styles/svproc}
+\usepackage[T1]{fontenc}
+\usepackage[utf8]{inputenc}
+\usepackage{lmodern,mathptmx,tgtermes,microtype}
+\usepackage{amsmath,amssymb,graphicx,booktabs,url}
+\usepackage[hidelinks]{hyperref}
+\pdfstringdefDisableCommands{\def\\{ }}
+\def\UrlFont{\rmfamily}
+\graphicspath{{figures/}}
+% Permit text alongside large multipanel figures without shrinking their labels.
+\renewcommand{\topfraction}{0.9}
+\renewcommand{\bottomfraction}{0.8}
+\renewcommand{\textfraction}{0.1}
+\renewcommand{\floatpagefraction}{0.8}
+\newcommand{\SpikingNN}{\texttt{SpikingNN}}
+\newcommand{\pos}[1]{\left[#1\right]_+}
+\newcommand{\dd}{\mathrm{d}}
+\newcommand{\RMSE}{\operatorname{RMSE}}
+\begin{document}
+\mainmatter
+\title{Afferent Feedback in a Two-Neuron Spiking Controller:\\Nonlinear Balance Recovery and Angle Regulation}
+\titlerunning{Afferent Feedback for Balance and Angle Regulation}
+\input{authors}
+\maketitle
+\begin{abstract}
+This manuscript is awaiting results from the new constrained search. Cross projections from each motoneuron to the antagonist muscle satisfy $0\le P_{01},P_{10}<0.1$; direct projections retain bounds $[0,2]$. The previous numerical results and genome appendices have been removed. The physical dynamics and fitness are unchanged. Neuronal activity is measured separately and does not enter selection.
+\keywords{spiking neural network, afferent feedback, neuromechanical control, evolutionary optimization, mirror symmetry}
+\end{abstract}
+
+\section{Introduction and Related Work}
+Postural control depends on sensory information about the body and on the mechanics of the muscles that generate corrective forces. Proprioception combines signals related to position, movement and force; it is not an ideal joint-angle measurement \cite{proske2012}. For limb muscles, the relevant sensory neurons have cell bodies in dorsal root ganglia and a bifurcating axon: its peripheral branch innervates a receptor, while its central branch carries action potentials into spinal and ascending pathways \cite{marasco2023}. These afferent axons must be distinguished from the intrafusal muscle fibres on which spindle endings terminate. Group Ia axons convey primary spindle activity and group II axons secondary activity; both contribute information about muscle stretch, with different dynamic sensitivities. Group Ib axons innervate Golgi tendon organs associated with force transmission at muscle--tendon junctions \cite{proske2012,marasco2023}. Mechanical deformation is thus represented by patterns of neural discharge, subsequently transformed by spinal circuits. The tendon-organ model of Mileusnic and Loeb further shows why the Ib response cannot generally be treated as an exact linear reading of total muscle force \cite{mileusnic2006gto}. This organization motivates asking how much useful control can survive when the sensory pathways and motor network are strongly reduced.
+
+The muscle spindle is itself an actively regulated mechanical receptor. Its encapsulated intrafusal fibres lie in parallel with force-producing extrafusal fibres. The mammalian spindle contains dynamic nuclear-bag fibres (bag$_1$), static nuclear-bag fibres (bag$_2$), and nuclear-chain fibres. Primary Ia endings sample the central sensory regions of all three types, whereas secondary II endings principally sample bag$_2$ and chain fibres; Ia responses contain both length and pronounced dynamic components, while II responses emphasize sustained stretch \cite{mileusnic2006spindle}. Alpha motoneurons activate extrafusal muscle, and gamma motoneurons contract the polar regions of intrafusal fibres, adjusting tension at their sensory endings. Coordinating these drives can preserve spindle sensitivity during shortening; dynamic and static fusimotor drives tune different aspects of the response \cite{marasco2023,mileusnic2006spindle}. This is more than changing a scalar sensory weight. Blum et al. demonstrate history-dependent firing arising from multiscale muscle mechanics \cite{blum2020}, and Dimitriou's human recordings show sensitivity changes with antagonist activity even under matched kinematics \cite{dimitriou2014}. Moreover, Loram et al. observed calf-muscle shortening during forward postural sway, illustrating how series compliance separates muscle-fibre length from whole-body motion \cite{loram2005}. Our model omits explicit intrafusal states, tendon compliance and gamma innervation; its activation-dependent Ia/II terms are phenomenological approximations to this richer physiology.
+
+The stretch reflex provides one rapid route from these signals to a corrective force. Stretch-sensitive Ia input excites alpha motoneurons of the same muscle and synergists; parallel pathways through Ia inhibitory interneurons can reduce antagonist activation. Group II and Ib inputs also enter interneuronal circuits, whose effects depend on the motor task and descending drive \cite{goulding2025}. A sustained stretch response can contribute to maintaining muscle length and supporting a posture, but postural stabilization involves a network of reflexes and sensory integration rather than one isolated monosynaptic loop. Peterka's human perturbation experiments demonstrate reweighting of visual, vestibular and proprioceptive information \cite{peterka2002}; Goulding et al. review how spinal sensory pathways are regulated with behavioural context \cite{goulding2025}. Gain regulation is consequential: removing presynaptic sensory inhibition in Fink et al.'s mouse experiments produced oscillatory reaching, with key features reproduced by a high-gain feedback model \cite{fink2014}. Removing proprioceptive feedback also degraded interjoint coordination and flexor--extensor patterning during mouse locomotion \cite{akay2014}. These studies motivate examining both recovery and residual oscillations. They do not identify the cause of oscillations in our reduced controller, whose fixed weights omit adaptive sensory gating, explicit conduction delays and supraspinal integration.
+
+Existing neuromechanical models connect this biology to control. Elias et al. coupled spiking populations, antagonist muscles and detailed proprioceptors to an inverted pendulum to investigate human posture \cite{elias2014}. Markin et al. studied Ia/II/Ib feedback in locomotion \cite{markin2010}, with Spardy et al. analysing rhythm generation and phase asymmetry \cite{spardy2011,spardy2011ii}. Niu et al. linked Izhikevich neuron populations, antagonist muscles and spindle feedback to a physical finger \cite{niu2017}; Jalaleddini et al. investigated fusimotor and descending drives on that platform \cite{jalaleddini2017}. Sreenivasa et al. identified a spiking and musculoskeletal arm model against stretch-reflex recordings \cite{sreenivasa2016}, whereas our parameters optimize simulated performance without fitting human observations. Parziale and Marcelli review these broader approaches to embodied sensorimotor modelling \cite{parziale2024}. A complementary strategy is internal state estimation: Maris demonstrated balance from acceleration-based spindle feedback when self-generated acceleration is absent from the feedback or explicitly corrected \cite{maris2025}. Our network instead receives nonlinear length, velocity, activation and force signals without an explicit state estimator.
+
+The present question is whether two spiking neurons can use such reduced afferent feedback to recover an unstable limb and regulate several angles. Two-neuron control itself is not new: Petri et al. prove practical stability for noisy one-dimensional linear plants controlled by two leaky integrate-and-fire neurons and illustrate a nonlinear inverted pendulum numerically \cite{petri2026}. Their spikes directly generate impulsive plant inputs; ours produce continuous forces through muscle dynamics, and our evidence consists of numerical tests and conditional reduced-model analysis. Guo et al. provide a precedent for jointly evolving neuronal and muscular parameters in an insect model \cite{guo2018}. Here a real-coded genetic algorithm searches a smaller circuit with separate training, validation and test banks; its parameters remain fixed during each episode. We compare two muscle-gain ranges and polynomial-command regulation under one tensile-force law, varying muscle-time domains and exact mirror constraints. Symmetry is a search restriction rather than a physiological finding. Five multipanel figures summarize the model and the strongest selected A--C routes together with their limitations; the expanded methods specify parameter bounds, search budgets and analytical conditions. The standalone NumPy/Numba implementation derives from the \SpikingNN{} model but does not require that package; training and analysis remain local to this experiment.
+
+\section{Closed-Loop Model}
+\subsection{Limb geometry and tensile mechanics}
+The angle $\theta=0$ denotes the upper vertical, with positive rotation towards the right in Fig.~\ref{fig:methods}. The corresponding original library coordinate is $q=\theta-\pi/2$. With $\omega=\dot\theta$,
+\begin{equation}
+ \dot\theta=\omega,\qquad J\dot\omega=K_g\sin\theta-b\omega+M_m,
+ \quad J=ml^2/3,\quad K_g=mgl/2.
+ \label{eq:plant}
+\end{equation}
+Fixed parameters are $m=0.3$ kg, $l=0.3$ m, $b=0.001$ N m s rad$^{-1}$ and $g=9.81$ m s$^{-2}$, giving $J=0.009$ kg m$^2$ and $K_g=0.44145$ N m. Anchors lie at horizontal distances $a_1=0.2$ m from the pivot; both muscles attach at $a_2=0.05$ m along the limb. For flexor F and extensor E,
+\begin{align}
+ L_F&=\sqrt{a_1^2+a_2^2-2a_1a_2\sin\theta},&
+ L_E&=\sqrt{a_1^2+a_2^2+2a_1a_2\sin\theta},\label{eq:lengths}\\
+ r_F&=\frac{a_1a_2\cos\theta}{L_F},&r_E&=\frac{a_1a_2\cos\theta}{L_E},\\
+ M_m&=r_FF_F-r_EF_E,&\dot L_F&=-r_F\omega,\quad\dot L_E=r_E\omega.
+ \label{eq:torque}
+\end{align}
+Each nonnegative force pulls towards its fixed anchor. Thus $M_m=-F_FL'_F-F_EL'_E$, consistently with virtual work. No additional torque multiplier is applied. All reported runs use this corrected tensile model; results from the earlier reversed and amplified torque convention are excluded.
+
+\begin{figure}[tbp]
+\centering\includegraphics[width=\textwidth]{fig1_methods.pdf}
+\caption{Model and resolved internal activity. (a) Limb geometry and tensile-force directions; arrows do not encode force magnitudes. (b) Command and feedback pathways. Neurons also interact through recurrent synapses. (c--f) The prescribed A/fast-domain example, $\theta_0=-30^\circ$, $\omega_0=0$: membrane potentials at 9.8--10 s, muscle forces, activations and all six afferent channels over 10 s. The afferent axis is linear near zero and logarithmic above one model unit. Each channel enters the network separately.}
+\label{fig:methods}
+\end{figure}
+
+\subsection{Neurons, muscles and sensory feedback}
+Each neuron follows the Izhikevich model \cite{izhikevich2003}, with neural time $s$ in milliseconds:
+\begin{align}
+ \frac{\dd v_i}{\dd s}&=0.04v_i^2+5v_i+140-u_i+I_i,&
+ \frac{\dd u_i}{\dd s}&=a_i(b_iv_i-u_i),\label{eq:neurons}\\
+ I_i&=I_i^{\rm app}+\sum_jS_{ij}+\sum_{r=1}^{6}Q_{ir}\mathcal A_r,&
+ \frac{\dd S_{ij}}{\dd s}&=-\frac{S_{ij}}{\tau_{ij}}+W_{ij}y_j.
+\end{align}
+At threshold $v_i\ge30$ mV, the implementation records a 31 mV peak and output $y_i=30$ for one sample, followed on the next step by $v_i\leftarrow c_i$, $u_i\leftarrow u_i+d_i$. Otherwise $y_i=0$. This is a discrete output rather than a normalized firing rate or time-step-independent impulse.
+
+Nonnegative weights $P_{mi}$ map neuronal output to muscle drive $d_m=\sum_iP_{mi}y_i$. Each muscle has calcium state $C_m$, activation $x_m$ and force $F_m$:
+\begin{equation}
+ \frac{\dd C_m}{\dd s}=w_md_m-\frac{C_m}{\tau_{c,m}},\qquad
+ x_m=\frac{C_m^{n_m}}{C_m^{n_m}+k_m^{n_m}},\qquad
+ \frac{\dd F_m}{\dd s}=A_mN_mx_m-\frac{F_m}{\tau_{1,m}}.
+ \label{eq:muscle}
+\end{equation}
+Both $A_m$ are fixed at 0.37 N/ms; $N_m\in[1,40]$ is an effective muscle-unit multiplier, not an additional neuron population. Steady gains depend on relaxation times: $C_\infty=\tau_cwd$ and $F_\infty=\tau_1ANx$. Changing a time constant therefore changes gain as well as delay.
+
+For each muscle, rectify normalized stretch velocity as $v_+=\pos{\dot L/L_{\rm th}}$. Rectified excess length and force are $d_+=\pos{(L-L_{\rm th})/L_{\rm th}}$ and $f_+=\pos{(F-F_{\rm th})/F_{\rm th}}$, where $[z]_+=\max(z,0)$. The full nonlinear afferent model is
+\begin{align}
+ Ia&=6.2v_+^{0.6}+2d_++0.06x,\nonumber\\
+ II&=1.5d_++0.06x,\qquad Ib=f_+.
+ \label{eq:afferents}
+\end{align}
+Thresholds $L_{\rm th},F_{\rm th}$ are optimized separately for each muscle. The six outputs form $\mathcal A=(Ia_F,II_F,Ib_F,Ia_E,II_E,Ib_E)$. These are phenomenological algebraic signals, not separately simulated sensory spikes. Sensory signals and applied currents use model units; historical current-field names do not establish nanoampere calibration. The neurons receive neither measured angle nor velocity as a separate control input.
+
+\subsection{Integration and numerical scope}
+Every experiment uses a 0.1 ms step. The explicit updates advance neurons, recurrent currents using the preceding spike output, calcium and force, mechanical motion, and then afferents for the next neural step. The mechanical update converts milliseconds to seconds. Neuronal and muscle states reset for each independent trial; its mechanical initial state comes from the case bank. A trial stops when $|\theta|>90^\circ$ or a state becomes nonfinite. The accelerated implementation shares one physical-step kernel across tasks. Training-input snapshots and deterministic random streams support independent repetition. Before the new sweep, small full-duration searches are repeated with different worker counts. Activity replays are checked against the saved test metrics. These checks establish repeatability in the pinned environment, not convergence under a smaller time step or bitwise equality across platforms. Existing trajectories were sampled at 0.1 ms for resolved examples and at 2 ms for static grids. Display thinning changes neither integration nor saved metrics. All input files and selected genomes are identified by SHA256 in the article manifest.
+
+\section{Tasks and Evolutionary Optimization}
+\subsection{Experimental design}
+\label{sec:design}
+In A and B the target is the upper vertical and $I_i^{\rm app}=0$. A allows $10^{-4}\le w_m\le1$, whereas B restricts $0.02\le w_m<0.1$. Both use 24 training, 48 validation and 96 test cases over $\theta_0\in[-50,50]^\circ$, $\omega_0\in[-1,1]$ rad/s. Independent Latin-hypercube banks are fixed within a run; the training bank includes boundary-angle and central anchors. Episodes last 10 s. Population size and number of initial states are distinct quantities.
+
+C adds two quadratic command laws to a shared physical genome:
+\begin{equation}
+ I_i^{\rm app}(\theta^*)=\sum_{k=0}^{2}c_{ik}\xi^k,\qquad
+ \xi=\theta^*/45^\circ.
+ \label{eq:commands}
+\end{equation}
+The argument is the desired angle. Five training targets ($0^\circ$, $\pm22.5^\circ$ and $\pm45^\circ$) use eight initial states each (40 cases). Validation uses nine targets with 12 states each (108); testing uses 17 targets with 24 states each (408). Testing therefore probes intermediate targets as well as new initial states. Coefficients lie in $[-1000,1000]$ model units; polynomial output itself is not clipped to those bounds. Two C procedures are compared. Joint training changes physical parameters and current coefficients together. Staged training first optimizes ten tabulated currents and physical parameters for five targets, fits bounded quadratic coefficients by least squares, and then jointly refines them. Table-stage validation has 60 cases at the five table targets; the polynomial stage restores the 108-case bank. Total budgets of 200, 500 and 1000 generations split into 100+100, 250+250 and 500+500 stages, respectively. Each run starts independently; no selected run initializes another.
+
+We retain three search domains. The \emph{fast domain} permits $\tau_c,\tau_1\in[5,100]$ ms in A/B and $[5.1,100]$ ms in C; its selected solutions use short muscle times. The \emph{slow domain} imposes $\tau_c\in[50,100]$ ms and $\tau_1\in[50,200]$ ms, with reference values 71 and 130 ms. Both times are log-encoded and remain trainable. The \emph{slow mirror domain} uses the same bounds plus exact pair constraints. Fast-domain searches receive the expanded sweep, whereas slow and slow-mirror profiles retain a single 200-generation baseline. These unequal budgets cannot establish a causal effect of muscle speed or a statistically reliable advantage of a search domain.
+
+\subsection{Genome, bounds and preparation of initial candidates}
+Table~\ref{tab:bounds} specifies the physical search space. The 52 stored fields comprise eight neuronal parameters, four recurrent weights, four synaptic times, fourteen muscle parameters, twelve sensory weights, four receptor thresholds, two attachment distances and four output weights. The attachment distances and two force-generation constants are fixed, leaving 48 mutable coordinates before symmetry. Applied currents are inputs; C appends its command coefficients while retaining the geometry fields. The muscle exponent $n_m$ is named \texttt{m} in saved genomes, whereas $N_m$ is a continuous effective multiplier, not an integer neuron count. For a mutable parameter $p$ with bounds $p_-<p_+$, decoding uses
+\begin{equation}
+ p(z)=p_-+z(p_+-p_-),\quad\hbox{or}\quad
+ p(z)=\exp\{\log p_-+z\log(p_+/p_-)\},\qquad z\in[0,1].
+ \label{eq:codec}
+\end{equation}
+The logarithmic form is used only for positive bounds. Fixed fields are inserted directly. Each saved genome embeds its configuration, so changing a nearby configuration file does not retrospectively change a recorded search.
+\begin{table}[tbp]
+\caption{Physical genome bounds for both neurons/muscles; counts precede mirror tying. $L_0=\sqrt{a_1^2+a_2^2}=0.206155$ m. Times are in ms; unspecified amplitudes use model units. The gain and time domains are defined in Sect.~\ref{sec:design}.}
+\label{tab:bounds}
+\centering\small
+\begin{tabular}{@{}lrll@{}}
+\toprule
+Parameters & Count & Bounds or fixed values & Encoding\\
+\midrule
+$a_i$ & 2 & $[0.005,0.15]$ & Log\\
+$b_i$ & 2 & $[0.15,0.30]$ & Linear\\
+$c_i$ & 2 & $[-70,-45]$ mV & Linear\\
+$d_i$ & 2 & $[0.1,8]$ & Log\\
+$W_{ij}$ & 4 & $[-2,2]$ & Linear\\
+$\tau_{ij}$ & 4 & $[2,60]$ & Log\\
+$w_m$ & 2 & $[10^{-4},1]$; B: $[0.02,0.1)$ & Log\\
+$N_m$, $A_m$ & $2+2$ & $[1,40]$; $0.37$ N/ms & Linear; fixed\\
+$\tau_{c,m},\tau_{1,m}$ & $2+2$ & Fast/slow domains & Log\\
+$n_m$, $k_m$ & $2+2$ & $[1.5,4]$; $[0.1,2]$ & Linear; log\\
+$Q_{i,Ia_m}$ & 4 & $[-200,200]$ & Linear\\
+$Q_{i,II_m}$ & 4 & $[-2000,2000]$ & Linear\\
+$Q_{i,Ib_m}$ & 4 & $[-30,30]$ & Linear\\
+$L_{{\rm th},m}$ & 2 & $[0.85L_0,1.10L_0]$ & Linear\\
+$F_{{\rm th},m}$ & 2 & $[0.1,5]$ N & Log\\
+$a_1,a_2$ & 2 & $0.2,0.05$ m & Fixed\\
+$P_{00},P_{11}$ & 2 & $[0,2]$ & Linear\\
+$P_{01},P_{10}$ & 2 & $[0,0.1)$ & Linear\\
+\bottomrule
+\end{tabular}
+\end{table}
+Initialization reads only the generic configuration and its domain overrides. Both neurons start with $(a,b,c,d)=(0.1,0.2,-65,2)$; recurrent diagonal weights are zero and cross weights are $-0.1$. Muscle drive gain starts at 0.15 in A/C and 0.08 in B; $N=2$, $A=0.37$, $n=2.5$ and $k=0.75$. Fast-domain muscle times start at 20/20 ms, and slow-domain times at 71/130 ms. C starts with zero command coefficients or table currents. Sensory weights, thresholds and output weights are explicitly listed in the distributed configurations. No archived genome, cross-task transfer, seed screening or fitted historical controller is read. These defaults are a specified starting point, not a fitted physiological parameter set.
+
+\subsection{Exact mirror constraints}
+Reflection maps $(\theta,\omega,\theta^*)$ to $(-\theta,-\omega,-\theta^*)$, exchanges neurons 0 and 1, and exchanges F and E. Corresponding neuronal and muscular parameters are tied; recurrent and sensory matrices transform under the same permutation. Geometry retains distinct $a_1$ and $a_2$. Command coefficients satisfy
+\begin{equation}
+ I_1^{\rm app}(\theta^*)=I_0^{\rm app}(-\theta^*),\qquad
+ c_{1k}=(-1)^kc_{0k}.
+ \label{eq:mirror}
+\end{equation}
+The codec stores one independent coordinate per constrained pair and reconstructs the complete genome before evaluation. Every crossover, mutation and immigrant satisfies the constraints, without a penalty term. The 52 physical fields contain four fixed entries ($a_1,a_2,A_F,A_E$), leaving 48 free coordinates, or 24 under reflection. Quadratic C has 54 versus 27 free coordinates; the C table stage has 58 versus 29. The generic configuration already satisfies the required pair constraints. Symmetric coordinates are reconstructed exactly before each simulation; no separate mirror seed screening is performed.
+
+\subsection{Episode scores and robust fitness}
+For A--C, let $e_h=\theta_h-\theta^*$, $H$ be the planned number of steps, $n$ the completed steps and $H_l$ the planned last two seconds. The per-step recovery reward and episode score are
+\begin{align}
+ R_h&=\max\!\left\{0,\exp[-(e_h/15^\circ)^2]-0.05\min(\omega_h^2,4)\right\},\nonumber\\
+ S&=0.10\frac nH+0.30\frac{\sum R_h}{H}
+       +0.45\frac{\sum_{h\in\mathrm{last\ 2\ s}}\exp[-(e_h/3^\circ)^2]}{H_l}
+       +0.15\chi.
+ \label{eq:staticfitness}
+\end{align}
+Here $\chi=1$ only for a completed episode that, after 3 s, never leaves $|e|\le3^\circ$ and $|\omega|\le0.35$ rad/s. The terms favour survival, recovery, late accuracy and timely settling. Missing samples after a fall contribute no reward: denominators retain planned values. Low average angle error alone does not imply success if velocity excursions remain.
+
+Nonfinite trials receive $S=-1$. Force is a diagnostic, with no separate energy penalty.
+
+Individual fitness over $K$ episodes is
+\begin{equation}
+ \mathcal F=0.50\,\overline S+0.30\,\overline{S}_{\rm worst\ quarter}
+                    +0.20\min_h S_h,
+ \label{eq:aggregate}
+\end{equation}
+where the worst group contains $\lceil K/4\rceil$ episodes. This emphasizes poor initial conditions rather than a few favourable trials. Late-RMSE summaries assign 90$^\circ$ to falls; completion and all-case error are reported alongside strict success.
+
+\subsection{Genetic algorithm and model selection}
+\label{sec:search}
+The algorithm is a real-coded, population-based search in normalized coordinates, with the following sequence.
+\begin{enumerate}
+ \item Read the generic configuration and profile, including bounds and mechanical constants. Map mutable fields into $[0,1]$ linearly or logarithmically according to their metadata. Remove fixed fields and apply the mirror codec when required.
+ \item Create a PCG64 generator with the recorded seed. Draw an entire $N\times d$ Gaussian array with standard deviation 0.1, add it to the encoded generic centre, and reflect. Overwrite row 0 with the unchanged centre and then overwrite the last $\max(1,\lfloor N/4\rfloor)$ rows with uniform $[0,1]$ draws from the same generator. Discarded Gaussian draws still consume the random stream. With $N=50$, this gives one centre, 37 local neighbours and 12 global samples. Uniform normalized sampling is log-uniform for log-encoded physical parameters. No fitness filtering occurs at initialization.
+ \item Evaluate every individual on all fixed training episodes and aggregate Eq.~\ref{eq:aggregate}. Save genomes, per-episode metrics, statistics and random-generator state. Numba threads evaluate independent individual/episode pairs; population evolution remains coordinated by one seeded generator. Separate sweep runs use independent processes and do not exchange genomes.
+ \item Copy the best $\lceil0.05N\rceil$ individuals unchanged. For each remaining child, draw a uniform immigrant with probability 0.05. Otherwise choose two parents independently by three-candidate tournaments sampled with replacement.
+ \item For each coordinate $j$, draw $\alpha_j\sim U[-0.15,1.15]$ and blend $z_j=\alpha_jz_{1j}+(1-\alpha_j)z_{2j}$. Independently with probability $p_\mu$ per coordinate, add $\mathcal N(0,\sigma_g^2)$ noise. Reflect into $[0,1]$: for $r=z\bmod2$, return $r$ if $r\le1$, and $2-r$ otherwise. Decode fixed and tied fields before simulation.
+ \item Decrease mutation scale according to
+ \begin{equation}
+  \sigma_g=\sigma_{\rm end}+\frac{\sigma_{\rm start}-\sigma_{\rm end}}2
+  \left[1+\cos\frac{\pi(g-1)}{\max(1,G-1)}\right].
+  \label{eq:schedule}
+ \end{equation}
+ The per-gene probability is constant in the reported runs. Generation 1 evaluates the initial population; $G$ evaluated generations contain $G-1$ reproduction transitions. Each stage of C restarts the schedule. Increasing $G$ changes the annealing trajectory from the first reproduction step, so a longer run need not contain the shorter run as a prefix.
+ \item Evaluate the initial centre on validation as generation 0. Evaluate the entire population at generation 1, every 20 generations and the last generation. Retain the best validation individual across these checkpoints, including generation 0. Replace the incumbent only for a strictly greater fitness; ties within a population keep the first index. The selected individual need not be the final training champion.
+ \item Freeze that genome and evaluate the test bank. Within each task and domain, select the reported branch by validation fitness, not test success or error. Re-evaluate the same frozen individual on training to report comparable training/validation/test rows. No test statistic selects a checkpoint or sweep winner.
+\end{enumerate}
+
+The baseline contains seven profiles: A/B fast and slow, plus C fast, slow and mirror, each at $N=50$, $G=200$, $p_\mu=0.3$ and $\sigma:0.20\to0.015$. Seeds are 42 for A/B and 43 for C; only C fast is staged. The expanded sweep independently crosses $G\in\{200,500,1000\}$, seed $\in\{42,43\}$ and $p_\mu\in\{0.1,0.3\}$ for each fast-domain task, with the same population, sigma endpoints and validation interval. This gives 36 sweep runs and 43 recorded runs including the baseline; three baseline configurations repeat within the grid, so there are 40 distinct configurations. The seven baseline reruns verify repeatability, not additional statistical replications. The 43 records account for 1,090,000 training-individual evaluations, excluding the separate repeatability reruns, validation and testing. C counts both stages in its budget.
+
+The reported controllers will be chosen by validation fitness after completion of the constrained study. In staged C, physical parameters are retained from the table winner and only its currents are fitted to the quadratic representation before fresh polynomial optimization. Activity diagnostics do not affect ranking.
+\begin{table}[tbp]
+\caption{Reported controllers and their fresh search budgets. Fast rows are validation winners from 12-run sweeps; slow/mirror rows are the fixed-budget baseline. All rows use $\sigma:0.20\to0.015$, validation every 20 generations, and no archived input. Staged C reports a local polynomial generation.}
+\label{tab:protocols}
+\centering\small\input{protocols_table}
+\end{table}
+
+\begin{figure}[tbp]
+\centering\includegraphics[width=\textwidth]{fig2_learning.pdf}
+\caption{Learning histories for tasks A--C. Colours distinguish domains; dotted lines show best training fitness and solid steps the validation incumbent at evaluated checkpoints. Diamonds mark stage baselines; vertical dashed lines mark stage changes. The horizontal axis counts evaluated individuals along the displayed route, including both C stages, but excludes validation/test costs. Fast C changes its validation bank after the table stage. Curves are single recorded routes, not means over repeated seeds.}
+\label{fig:learning}
+\end{figure}
+
+\section{Results}
+Results of the constrained study are pending. Previous result tables, figures and exported genomes have been removed.
+
+\section{Interpretation and Limitations}
+\subsection{What the paired afferents can encode}
+The geometry explains how indirect signals can carry directional information. Consider a local illustrative case with both length thresholds equal to $L_0=\sqrt{a_1^2+a_2^2}$, and define $\beta=a_1a_2/L_0^2=0.235294$. Then $(L_E-L_0)/L_0\simeq\beta\theta$, $(L_F-L_0)/L_0\simeq-\beta\theta$, and the normalized stretch velocities are approximately $\pm\beta\omega$. Using $[z]_+-[-z]_+=z$, the actual nonlinear afferent equations give, to leading order in the geometry,
+\begin{align}
+ II_E-II_F&\simeq1.5\beta\theta+0.06(x_E-x_F),\nonumber\\
+ Ia_E-Ia_F&\simeq6.2\beta^{0.6}\operatorname{sgn}(\omega)|\omega|^{0.6}
+                 +2\beta\theta+0.06(x_E-x_F).
+ \label{eq:encoding}
+\end{align}
+Thus opponent weights can extract signed displacement and stretch-rate information from rectified channels, although the Ia velocity term is nonlinear. This example is not a fitted local controller: learned thresholds differ from $L_0$, unequal activations contribute additional signals, and both length channels can be inactive over a range of angles. Ib adds force information only above its threshold. The six channels therefore do not guarantee globally unique state reconstruction, and their fixed coefficients are not identified receptor properties.
+
+\subsection{Torque capacity, geometry and local controllability}
+Holding $\theta^*$ requires $M^*=-K_g\sin\theta^*$. Since the muscles pull with nonnegative force, a necessary capacity condition is
+\begin{equation}
+ -r_EF_{E,\max}\le M^*\le r_FF_{F,\max},\qquad
+ F_{m,\max}\le\tau_{1,m}A_mN_m.
+ \label{eq:capacity}
+\end{equation}
+The second bound follows from $0\le x_m\le1$ for initially relaxed muscles. A tighter bound uses $C_{m,\max}\le30\tau_{c,m}w_m\sum_iP_{mi}$ and the activation $x_m(C_{m,\max})$ in Eq.~\ref{eq:muscle}. These are upper bounds, not forces guaranteed attainable by the spiking network. At $\pm45^\circ$, gravity requires 0.31215 N m and a single opposing muscle must supply about 10.506 N; coactivation can require larger individual forces. Moment arms vanish towards $\pm90^\circ$. Moreover, freezing both muscle forces at their upright values gives
+\begin{equation}
+ \left.\frac{\partial M_m}{\partial\theta}\right|_{\theta=0,F_F,F_E}
+ =\frac{(a_1a_2)^2}{(a_1^2+a_2^2)^{3/2}}(F_F+F_E)>0
+ \label{eq:coactivation}
+\end{equation}
+for nonzero total force. In this particular tensile geometry, constant-force coactivation contributes a destabilizing slope; it does not by itself create restoring stiffness. Muscle force--length properties omitted from our model could change that conclusion for a biological limb. Open-loop upright eigenvalues are $6.9482$ and $-7.0593$ s$^{-1}$, confirming that feedback is required. Linearizing the mechanical plant about a feasible $\theta^*$ gives
+\begin{equation}
+ A=\begin{pmatrix}0&1\\K_g\cos\theta^*/J&-b/J\end{pmatrix},\quad
+ B=\begin{pmatrix}0\\1/J\end{pmatrix},\quad\det[B,AB]=-1/J^2\ne0.
+ \label{eq:controllability}
+\end{equation}
+This establishes local controllability with an independently assignable signed torque; the full neural-muscle system additionally faces force limits, activation dynamics and constrained command currents.
+
+\subsection{Conditional stability with one or two muscle lags}
+Let $K=K_g\cos\theta^*$ and suppose an averaged incremental response can be represented as $\delta M=-K_p\delta\theta-K_d\delta\omega$. Without activation lag, the characteristic polynomial is
+\begin{equation}
+ Js^2+(b+K_d)s+(K_p-K)=0,
+ \label{eq:zerolag}
+\end{equation}
+which is stable precisely when $K_p>K$ and $b+K_d>0$. These gains denote hypothetical derivatives of the aggregate response; no PD controller is added to the simulator. Approximating that response by one additional lag $(1+Ts)^{-1}$ gives
+\begin{equation}
+ JT s^3+(J+bT)s^2+(b+K_d-KT)s+(K_p-K)=0.
+ \label{eq:onelag}
+\end{equation}
+With $T>0$, the Routh--Hurwitz criterion requires positive coefficients and
+\begin{equation}
+ (J+bT)(b+K_d-KT)>JT(K_p-K).
+ \label{eq:onelagRH}
+\end{equation}
+For two separate lags $(1+T_cs)^{-1}(1+T_1s)^{-1}$, the equation becomes $(Js^2+bs-K)(1+T_cs)(1+T_1s)+K_p+K_ds=0$. Writing this as $h_4s^4+h_3s^3+h_2s^2+h_1s+h_0=0$ gives
+\begin{align}
+ h_4&=JT_cT_1,& h_3&=J(T_c+T_1)+bT_cT_1,\nonumber\\
+ h_2&=J+b(T_c+T_1)-KT_cT_1,&
+ h_1&=b+K_d-K(T_c+T_1),\nonumber\\
+ h_0&=K_p-K.&&
+ \label{eq:twolag}
+\end{align}
+All coefficients must be positive, with the additional inequalities
+\begin{equation}
+ h_3h_2>h_4h_1,\qquad
+ h_3h_2h_1>h_4h_1^2+h_3^2h_0.
+ \label{eq:twolagRH}
+\end{equation}
+Here $s$ is a Laplace variable, and $T_c=\tau_c/1000$, $T_1=\tau_1/1000$ are in seconds, unlike the millisecond neural time in Eq.~\ref{eq:neurons}. The lag models neglect additional neural/synaptic dynamics and asymmetric muscle responses. They explain why static capacity and positive restoring gain alone do not ensure stability when activation is slow, but do not certify a selected genome: its effective gains have not been identified. The full system has spike resets and a rectified $v_+^{0.6}$ term with an unbounded right derivative at zero. Smooth linearization at rest therefore needs additional assumptions; no Floquet or Lyapunov analysis of the full hybrid trajectories is supplied. Changing muscle times also changes steady gains and admissible search bounds, so our comparisons do not isolate delay as a causal factor.
+
+Exact mirror constraints remove search coordinates and impose command parity; they do not guarantee settling or activity of both neurons. The two-seed fast grid is designed to examine search variability; more seeds and equally extensive slow/mirror sweeps are needed to assess reliability. The fixed public test banks are reused as reproducibility benchmarks; a new, independently designed bank would be needed for a further generalization claim. The two-neuron count describes the spiking circuit, not total dynamical order: synapses, muscle states and feedback add memory and nonlinearity. Unlike detailed physiological or hardware studies \cite{elias2014,niu2017,jalaleddini2017}, this model has algebraic afferents, no explicit fusimotor circuit and no identified force--length--velocity law. Its optimized gains establish neither physiological plausibility nor energy efficiency. Unlike the stability theorem for Petri et al.'s one-dimensional linear plant \cite{petri2026}, the phase grids here remain finite-horizon evidence rather than a global stability proof.
+
+\section{Conclusions and Reproducibility}
+The new search is running from generic configuration with restricted cross projections. No conclusions from the deleted study are retained as results of this new experiment. See the standalone README for commands, initialization, validation-only selection and the separate spike-activity diagnostics.
+
+\clearpage
+\bibliographystyle{styles/bibtex/spmpsci_unsrt}
+\bibliography{references}
+\input{appendix_genomes}
+\end{document}

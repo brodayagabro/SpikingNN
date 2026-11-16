@@ -1,10 +1,11 @@
-"""Compare C seeds, command filter times and two trajectory fine-tuning modes."""
+"""Compatibility launcher for experiment D; new runs use the unified schema."""
 from pathlib import Path
 import sys
-
-sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
-from scripts.AfferentBalance2026.experiments.D_trajectory.run_experiment import main
-
+for root in Path(__file__).resolve().parents:
+    if (root/'src/SpikingNN').is_dir():
+        sys.path.insert(0, str(root))
+        break
+from scripts.AfferentBalance2026.run import legacy_main
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(legacy_main('D', sweep=True))

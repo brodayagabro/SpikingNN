@@ -1,3 +1,13 @@
+# Current numerical model and workflow
+
+This refactor preserves the numerical equations below: full Afferents, tensile muscle forces, 0.1 ms integration,
+zero applied currents for A/B, target-only commands for C, and state continuity for D.
+Starting presets fix A=0.37 and constrain tau_c to [50,100] ms and tau_1 to [50,200] ms.
+[Workflow](../docs/USER_GUIDE.en.md) · [Exact current defaults](../docs/CONFIGURATION.en.md) · [Metric schemas](../docs/RESULTS.en.md).
+Historical performance statements below retain their original protocols; short refactor smoke runs do not replace them.
+
+---
+
 # Active A/B/C mathematical model
 
 [Русский](MODEL_METHODS.md) · [Experiments](README.en.md)

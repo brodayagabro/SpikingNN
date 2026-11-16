@@ -227,3 +227,77 @@ def plot_condition_banks(directory, banks):
     for extension in ('png', 'pdf'):
         fig.savefig(Path(directory) / f'initial_conditions.{extension}', dpi=180)
     plt.close(fig)
+
+
+def plot_run_artifacts(run, output=None):
+    """Plot only saved traces: phase trajectories, angles, forces and afferents.
+
+    No simulation, selection, publication or historical path lookup is performed.
+    Red denotes the flexor; blue denotes the extensor. Units follow saved columns.
+    """
+    from .core.config import read_json
+    run = Path(run)
+    records = read_json(run/'traces/index.json')
+    if not records:
+        raise ValueError('No saved trajectories to plot; enable storage.replay')
+    output = Path(output) if output is not None else run/'figures'
+    output.mkdir(parents=True, exist_ok=True)
+    configure_fonts(14)
+    fig, axes = plt.subplots(2, 2, figsize=(13, 9), constrained_layout=True)
+    for index, item in enumerate(records):
+        with np.load(run/'traces'/item['file'], allow_pickle=False) as saved:
+            trace = saved['trace']
+            axes[0, 0].plot(np.rad2deg(trace[:, 1]), trace[:, 2], lw=.8, alpha=.65)
+            axes[0, 0].plot(np.rad2deg(trace[0, 1]), trace[0, 2], '.', ms=3)
+            if index < 10:
+                axes[0, 1].plot(trace[:, 0], np.rad2deg(trace[:, 1]), lw=1, alpha=.8)
+                if 'reference' in saved:
+                    axes[0, 1].plot(trace[:, 0], np.rad2deg(saved['reference'][:, 0]), 'k--', lw=.7)
+            if index == 0:
+                for side, color, force, channels in (('Flexor', 'red', 3, slice(11, 14)),
+                                                       ('Extensor', 'blue', 4, slice(14, 17))):
+                    axes[1, 0].plot(trace[:, 0], trace[:, force], color=color, label=side)
+                    axes[1, 1].plot(trace[:, 0], trace[:, channels].sum(axis=1), color=color, label=side)
+    for ax, letter in zip(axes.flat, 'ABCD'):
+        ax.set_title(letter, loc='left', fontweight='bold')
+        ax.grid(alpha=.2)
+    axes[0, 0].set(xlabel='Angle from vertical (deg)', ylabel='Angular velocity (rad/s)')
+    axes[0, 1].set(xlabel='Time (s)', ylabel='Angle from vertical (deg)')
+    axes[1, 0].set(xlabel='Time (s)', ylabel='Muscle force (N)')
+    axes[1, 1].set(xlabel='Time (s)', ylabel='Sum of afferent activities (model units)')
+    axes[1, 0].legend(); axes[1, 1].legend()
+    for extension in ('png', 'pdf'):
+        fig.savefig(output/f'dynamics.{extension}', dpi=160)
+    plt.close(fig)
+    return output/'dynamics.png'
+
+
+def build_run_report(manifest, output):
+    """Create a portable evidence report from a requested run, never a dated default."""
+    from .core.config import read_json
+    from .core.genome import file_hash, write_json
+    import shutil
+    manifest = Path(manifest).resolve()
+    record = read_json(manifest)
+    if record.get('schema') != 'afferent_result_v1' or record['status'] != 'completed':
+        raise ValueError('report requires an explicitly completed versioned manifest')
+    run, output = manifest.parent, Path(output).resolve()
+    solution = run/'solution.json'
+    if file_hash(solution) != record['solution_sha256']:
+        raise ValueError('Manifest solution checksum mismatch')
+    output.mkdir(parents=True, exist_ok=False)
+    figure = None
+    if (run/'traces/index.json').is_file():
+        figure = plot_run_artifacts(run, output)
+    text = ('# Experiment evidence / Результаты эксперимента\n\n'
+            f'Source manifest: `{manifest}`\n\nSHA-256: `{file_hash(manifest)}`\n\n'
+            f'Selected solution SHA-256: `{file_hash(solution)}`\n\n'
+            'This report reads recorded results and does not start training or publish a current genome. '
+            'Short smoke runs verify infrastructure, not scientific success.\n\n'
+            '```json\n'+json.dumps(record.get('selection', {}), indent=2, ensure_ascii=False)+'\n```\n\n')
+    if figure:
+        text += '![Recorded phase trajectories, angles, muscle forces and afferents](dynamics.png)\n'
+    (output/'REPORT.md').write_text(text)
+    shutil.copy2(manifest, output/'source_manifest.json')
+    write_json(output/'provenance.json', dict(manifest=str(manifest), sha256=file_hash(manifest)))
+    return dict(status='completed', output=str(output), report=str(output/'REPORT.md'))

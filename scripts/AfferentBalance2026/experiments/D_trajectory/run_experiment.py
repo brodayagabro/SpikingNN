@@ -16,7 +16,7 @@ import zipfile
 import numpy as np
 
 if __package__ in (None, ''):
-    sys.path.insert(0, str(Path(__file__).resolve().parents[4]))
+    sys.path.insert(0, str(next(p for p in Path(__file__).resolve().parents if (p/'src/SpikingNN').is_dir())))
 
 from scripts.AfferentBalance2026.experiments.core.evolution import Schedule, optimize, reflect
 from scripts.AfferentBalance2026.experiments.core.fitness import fitness
@@ -77,13 +77,6 @@ class Evaluator:
         metrics = np.array(list(self.pool.map(evaluate_task, tasks) if self.pool else map(evaluate_task, tasks)))
         return np.array([fitness(row) for row in metrics]), metrics
 
-
-def default_sources():
-    """Return all four retained C method winners, before and after the tau study."""
-    base = HERE.parent/'C_setpoint_balance/results'
-    return {f'{study}_{method}': base/f'joint_sweep{suffix}_20261022/method_winners/{method}/best_genome.json'
-            for study, suffix in (('original', ''), ('tau_gt5', '_tau_gt5'))
-            for method in ('joint', 'staged')}
 
 
 def summarize(name, metrics, specs):
@@ -188,7 +181,8 @@ def run_study(output, *, config=HERE/'genome_cfg.json', workers=1, settings_over
     genome = TrajectoryGenome(cfg)
     settings = cfg['trajectory']
     banks = trajectory_banks(settings)
-    sources = default_sources() if sources is None else sources
+    if not sources:
+        raise ValueError("D requires explicit compatible sources; dated defaults were removed")
     # Validate all sources before creating an output directory or launching work.
     seeds = {}
     for name, path in sources.items():
@@ -258,18 +252,10 @@ def run_study(output, *, config=HERE/'genome_cfg.json', workers=1, settings_over
 
 
 def main():
-    """Parse explicit reproducible study settings and run the D comparison."""
-    parser = argparse.ArgumentParser(description=__doc__)
-    parser.add_argument('--output', type=Path, required=True)
-    parser.add_argument('--config', type=Path, default=HERE/'genome_cfg.json')
-    parser.add_argument('--workers', type=int, default=1)
-    parser.add_argument('--population', type=int)
-    parser.add_argument('--generations', type=int)
-    parser.add_argument('--seed', type=int)
-    args = parser.parse_args()
-    overrides = {k:getattr(args, k) for k in ('population', 'generations', 'seed') if getattr(args, k) is not None}
-    print(run_study(args.output, config=args.config, workers=args.workers, settings_override=overrides))
+    """Compatibility CLI delegated to the common local executor."""
+    from scripts.AfferentBalance2026.run import legacy_main
+    return legacy_main('D', sweep=False)
 
 
 if __name__ == '__main__':
-    main()
+    raise SystemExit(main())
