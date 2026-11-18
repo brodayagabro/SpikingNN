@@ -1,0 +1,315 @@
+# Afferent control of an unstable pendulum by a spiking neuromuscular system
+
+**Kovalev N. A.**  
+Computational study. Muscle relaxation times ≥50 ms; corrected tensile mechanics, `SpikingNN.Afferents/v3-tensile`. Study date: 26 October 2026.
+
+## Abstract
+
+A single-link inverted pendulum is controlled by two antagonistic muscles and two Izhikevich neurons. Sensory feedback uses the full nonlinear Ia, II and Ib afferent model. A genetic algorithm optimizes neuronal, synaptic, muscle-activation and sensory-feedback parameters. Experiments address zero-current balance, restricted neuromuscular weights, five commanded positions and continuous sinusoidal tracking. Every simulation uses a 0.1 ms integration step, the corrected direction of muscle tension and no factor of ten in the muscle torque. Previously saved winners are retrained, a stable solution is transferred between admissible domains, and two methods of learning command currents are compared. Exact reflection constraints are additionally tested in C/D: holding strict success increases from 0/408 to 169/408 on the original bank and to 166/408 on a fresh confirmation bank. Tracking error decreases without achieving strict success. Numerical results are generated directly from saved arrays. Mechanical controllability with torque input and conditional local stability of an averaged closed loop are derived analytically; these statements do not establish stability of the complete hybrid neuronal system.
+
+**Keywords:** afferent feedback; spiking network; inverted pendulum; genetic algorithm; muscle tension; position control.
+
+## 1. Introduction and objective
+
+Stabilizing a limb near an unstable vertical posture requires coordinated antagonist forces and sensory feedback. Small-angle linearization cannot describe nonlinear moment arms, activation saturation and thresholded sensory responses over initial deviations up to 50°. The controller is therefore evaluated over a wide rectangle of initial angles and velocities.
+
+The objective is to determine whether one spiking neuromuscular architecture can balance, hold different commanded angles and track changing references. The tasks are to make mechanical signs consistent with tension, retrain experiments A–D, separate training/model selection/testing, compare phase trajectories and internal signals, derive analytical control and stability constraints, and test reflection constraints on C/D genomes.
+
+The neuronal equations follow Izhikevich [1]. The local `Afferents` class implements nonlinear proprioceptive feedback motivated by neuromechanical modelling [2, 3]. The muscle is a phenomenological calcium, saturating-activation and force-relaxation model; it does not include all force–length and force–velocity properties of a full Hill-type muscle. An ankle/foot interpretation is a mechanical analogy, not identification against a particular human subject.
+
+## 2. Materials and methods
+
+### 2.1. Geometry and mechanics
+
+The upright posture is $\theta=0$, with positive angles directed to the right in the diagram. Library coordinates use $q=\theta-\pi/2$. Parameters are mass $m=0.3$ kg, rod length $l=0.3$ m, viscosity $b=0.001$ N·m·s/rad and gravity $g=9.81$ m/s². Attachment distances $a_1=0.2$ m and $a_2=0.05$ m are fixed user-specified genome fields. Mass, rod length, viscosity and gravity are configuration metadata rather than genes.
+
+$$
+J=\frac{ml^2}{3},\quad K_g=\frac{mgl}{2},\quad
+\dot\theta=\omega,\quad J\dot\omega=K_g\sin\theta-b\omega+M_m.
+$$
+
+$$
+L_F=\sqrt{a_1^2+a_2^2-2a_1a_2\sin\theta},\qquad
+L_E=\sqrt{a_1^2+a_2^2+2a_1a_2\sin\theta},
+$$
+
+$$
+r_F=\frac{a_1a_2\cos\theta}{L_F},\quad r_E=\frac{a_1a_2\cos\theta}{L_E},\quad
+M_m=r_FF_F-r_EF_E.
+$$
+
+Each force points from the rod attachment towards its fixed anchor. Its generalized torque is $-F\,\partial L/\partial\theta$, giving $M_m=-F_Fh_F+F_Eh_E$ in library notation. There is no multiplier of ten. Lengthening velocities are $\dot L_F=-r_F\omega$ and $\dot L_E=r_E\omega$. Nonnegative forces can generate either net torque direction while both muscles remain tensile.
+
+{{MECHANICS_FIGURE}}
+
+### 2.2. Spiking neurons and recurrent synapses
+
+There are exactly two neurons. With time $s$ measured in milliseconds,
+
+$$
+\frac{dv_i}{ds}=0.04v_i^2+5v_i+140-u_i+I_i,\qquad
+\frac{du_i}{ds}=a_i(b_iv_i-u_i).
+$$
+
+A threshold event at $v_i\ge30$ mV causes $v_i\leftarrow c_i$, $u_i\leftarrow u_i+d_i$. Specifically, the implementation records a 31 mV peak and an output $y_i=30$ at the event, and resets on the following step. Otherwise $y_i=0$. The output is a discrete model signal, not a normalized firing rate.
+
+$$
+I_i=I_i^{\rm app}+\sum_{j=0}^{1}S_{ij}+\sum_{r=0}^{5}Q_{ir}A_r,\qquad
+\frac{dS_{ij}}{ds}=-\frac{S_{ij}}{\tau_{ij}}+W_{ij}y_j.
+$$
+
+Here $A_r$ denotes an afferent channel, distinct from the muscle parameter $A_m$. Muscle drive is $u_m^{\rm drive}=\sum_iP_{mi}y_i$, with $P_{mi}\ge0$. Applied currents are exactly zero in A/B. No PD or PID controller receives measured angle, velocity or tracking error: state feedback is provided by the afferents.
+
+### 2.3. Muscle activation
+
+$$
+\frac{dC_m}{ds}=w_m u_m^{\rm drive}-\frac{C_m}{\tau_{c,m}},\qquad
+x_m=\frac{C_m^{n_m}}{C_m^{n_m}+k_m^{n_m}},\qquad
+\frac{dF_m}{ds}=A_mN_mx_m-\frac{F_m}{\tau_{1,m}}.
+$$
+
+The exponent $n_m$ is named `m` in JSON. Constructor parameters `tau_c` and `tau_1` are times in milliseconds; library objects store reciprocal rates. Both muscles in all experiments now use $50\le\tau_c\le100$ ms and $50\le\tau_1\le200$ ms with logarithmic encoding. Configured starting values are 71 and 130 ms. The force-time upper bound was expanded from 100 to 200 ms to include the 130 ms reference. These times remain optimized genes. $N_m$ is an effective muscle-unit multiplier, not neuron count; $1\le N_m\le40$. Both physiological $A_m$ values remain fixed at 0.37 N/ms. Changing relaxation times changes both lag and steady gains: $C_\infty=\tau_c w u^{\rm drive}$ and $F_\infty=\tau_1 A N x$. Exact bounds are listed in the appendix.
+
+### 2.4. Full nonlinear afferents
+
+The model is `Afferents`, not `Simple_Afferents`. Define
+
+$$
+v_+=\max(\dot L/L_{\rm th},0),\quad d_+=\max((L-L_{\rm th})/L_{\rm th},0),\quad
+f_+=\max((F-F_{\rm th})/F_{\rm th},0).
+$$
+
+$$
+I_a=k_vv_+^{p_v}+k_{dI}d_++k_{nI}x+c_I,\quad
+II=k_{dII}d_++k_{nII}x+c_{II},\quad I_b=k_ff_+.
+$$
+
+Constants are $p_v=0.6$, $k_v=6.2$, $k_{dI}=2$, $k_{dII}=1.5$, $k_{nI}=k_{nII}=0.06$, $k_f=1$, $c_I=c_{II}=0$. Length and force thresholds are separate genes for each muscle. The six channels are flexor Ia/II/Ib followed by extensor Ia/II/Ib. Their sums are plotted only for readability; the neural network receives six separate channels. Responses and currents use model units. Historical `nA` key suffixes do not constitute physical current calibration.
+
+### 2.5. Integration and reproducibility
+
+Every variant calls the same Numba `physical_step` function with a 0.1 ms explicit Euler step. Mechanical updates convert the step to seconds. Within a step the code updates both neurons, recurrent currents using previous-step spike outputs, muscle calcium and force, torque at the current geometry, mechanics, and finally afferents for the next neural update.
+
+Each episode resets neuronal and muscle states and applies the prescribed initial angle and velocity. Crossing $|\theta|>90^\circ$ terminates the episode. Missing post-fall data are never extrapolated. Recording stride affects storage only: example traces retain every 0.1 ms sample, while grid and zero-velocity traces are recorded every 2 ms. Original library classes independently reproduce sample trajectories, and metrics are recomputed from full-resolution traces.
+
+### 2.6. Experiments A–D
+
+A balances with zero applied currents and $10^{-4}\le w_m\le1$. B uses the restored restriction $0.02\le w_m<0.1$; the earlier $w_m\le0.02$ setting is not the current protocol. Both use 24 training, 48 validation and 96 test conditions. Independent Latin hypercubes cover $\theta_0\in[-50,50]^\circ$ and $\omega_0\in[-1,1]$ rad/s. Training also includes angle endpoints and the centre. Banks remain fixed throughout a run. Population size counts candidate genomes, not initial conditions. Episodes last 10 s.
+
+C appends six quadratic current coefficients to the 52 controller fields:
+
+$$
+I_i^{\rm app}(\theta^*)=\sum_{k=0}^{2}c_{ik}(\theta^*/45^\circ)^k.
+$$
+
+Commands depend on the desired rather than measured angle. Training uses five targets (−45°, −22.5°, 0°, 22.5°, 45°) and eight initial conditions per target, totalling 40 episodes. Validation uses nine targets × 12 states = 108 episodes; testing uses 17 targets × 24 states = 408. Intermediate angles test interpolation. Coefficients are bounded by ±1000 model units; polynomial values themselves are not necessarily within that interval.
+
+Joint training optimizes controller and coefficients together. Staged training first optimizes the controller and ten target-specific currents, fits a bounded quadratic polynomial by least squares, then jointly refines controller and coefficients. The table stage validates only its five target angles (60 episodes); polynomial interpolation is assessed after conversion. Initial budgets are 50 candidates × 200 generations, split into 100 table and 100 polynomial generations for the staged method. Further refinement is reported separately and is not an equal-budget comparison.
+
+D preserves the complete physical state under continuously changing references. Sinusoids have amplitudes 10–45°, frequencies 0.04–0.10 Hz, and offsets keeping the envelope inside ±45°. Initial angles are within ±45° and velocities within ±0.5 rad/s. A 4 s constant command precedes a 2 s quintic onset $6z^5-15z^4+10z^3$ and two full periods. Training/validation/test banks contain 8/10/18 trajectories. The implementation supports optimizing only eight command coefficients or all 56 free coordinates; the initial run of this series uses joint optimization. The initial D solution is prepared from the old D winner under the new time bounds. Any additional transfers from C are identified separately in the run protocols. D retains eight cubic coefficients; the cubic terms are initially zero on quadratic-C transfer and can subsequently evolve. This series uses direct commands, $\tau_I=0$; the supported filter $\dot I=(I^*-I)/\tau_I$ is not optimized here. `AngleController` preserves state between commands and discards history only on explicit `reset`.
+
+### 2.7. Fitness
+
+Let $e=\theta-\theta^*$, $H$ be the scheduled step count, $n$ the completed count, and $H_l$ the count in the last two seconds. In A/B/C,
+
+$$
+R_h=\max\{0,\exp[-(e_h/15^\circ)^2]-0.05\min(\omega_h^2,4)\},
+$$
+
+$$
+S=0.10\frac nH+0.30\frac{\sum R_h}H+
+0.45\frac{\sum_{h\text{ in last 2 s}}\exp[-(e_h/3^\circ)^2]}{H_l}+0.15\chi.
+$$
+
+Success $\chi=1$ requires completion and no exit from $|e|\le3^\circ$, $|\omega|\le0.35$ rad/s after 3 s. Missing steps earn no reward. Failed episodes receive a 90° late-RMSE penalty rather than a fabricated stationary error. Overall RMSE covers only the observed interval and cannot alone compare completed episodes with early falls.
+
+D scores the interval after the initial 4 s. Let $H_D$ be its planned length, $v_e=\omega-\dot\theta^*$ and $B_h$ the indicator of $|e_h|\le3^\circ$, $|v_{e,h}|\le0.35$ rad/s:
+
+$$
+S_D=0.10\frac nH+
+\frac{0.55\sum e^{-(e_h/5^\circ)^2}+0.20\sum e^{-(v_{e,h}/0.15)^2}+0.15\sum B_h}{H_D}.
+$$
+
+D success requires completion, $\sum B_h/H_D\ge0.95$ and RMSE ≤3°. Reference velocity is used for scoring, not as a separate neural input. Nonfinite states receive $S=-1$. All experiments use the same robust reduction over $K$ episodes:
+
+$$
+\mathcal F=0.50\operatorname{mean}(S)+0.30\operatorname{mean}(S_{\rm worst})+0.20\min(S),
+\qquad |S_{\rm worst}|=\lceil K/4\rceil.
+$$
+
+Muscle force is recorded diagnostically without an explicit energy penalty. High fitness therefore does not demonstrate physiological energy optimality.
+
+### 2.8. Genetic algorithm, step by step
+
+1. Load the self-contained seed JSON, including its configuration, bounds, mechanics and physical values. Retraining follows this saved domain rather than a potentially changed neighbouring configuration.
+2. Exclude fixed fields $a_1,a_2,A_F,A_E$ from search. Normalize remaining coordinates to [0,1] linearly or logarithmically according to `scale`. The controller has 52 fields/48 mutable coordinates; quadratic C has 58/54; cubic D has 60/56; the C table stage has 62/58.
+3. Preserve the seed as the first candidate. Initialize other candidates by Gaussian perturbations with σ=0.1; fill the final quarter uniformly. Optional polarity seeds invert afferent weights or swap sensory/output/muscle groups where bounds permit. These change genes, not mechanical signs.
+4. Evaluate every candidate on the fixed training bank, aggregate fitness and save normalized/physical genomes, per-episode metrics and random-generator state.
+5. Preserve the best $\lceil0.05N_{pop}\rceil$ candidates. Each other child has probability 0.05 of becoming a uniform immigrant. Otherwise select two parents by independent tournaments of three candidates sampled with replacement.
+6. Perform independent coordinate-wise blending $z=\alpha z_1+(1-\alpha)z_2$, $\alpha\sim U[-0.15,1.15]$.
+7. Mutate each coordinate with constant probability $p_\mu$ using Gaussian noise. Its standard deviation follows a cosine schedule from `sigma-start` to `sigma-end`. Reflect values into [0,1] and reinsert fixed fields on decoding.
+8. Repeat for the requested number of evaluated generations. Generation 1 evaluates initialization, so 200 generations contain 199 reproduction transitions. Each staged phase restarts its schedule.
+9. Validate the seed as generation 0, then all candidates at generation 1, every `validation-every` generations and the final generation. Select the best validation candidate across checkpoints, retaining generation 0 as eligible. The winner need not come from the last population.
+10. Freeze the winner and evaluate the held-out test. Select between branches by validation, never test fitness. Save source snapshots, SHA256 hashes, configurations, banks and commands. A source change during calculation prevents successful completion certification.
+
+Initial A/B/C runs use population 50, 200 generations, mutation probability 0.3, σ=0.12→0.01 and seed 51. Initial D uses 30 individuals and 100 generations. Additional refinements and D have separately listed settings. This is retraining of saved solutions, not a new full hyperparameter sweep or a repeated multi-seed statistical study.
+
+### 2.9. Implementation verification
+
+{{VERIFICATION}}
+
+### 2.10. Exact reflection constraints for C/D genomes
+
+A separate `mirror_symmetry_20261026` series tests whether tying the two antagonistic halves reduces search dimensionality and improves transfer between signs of the target angle. Reflection reverses $\theta$, $\omega$ and $\theta^*$ while swapping neurons 0↔1 and muscles F↔E. These are exact equalities, not a penalty for parameter differences.
+
+Paired parameters include neuronal $a,b,c,d$; diagonal and cross elements of recurrent $W$ and synaptic times; muscle $w,N,A,\tau_c,\tau_1,m,k$; receptor thresholds; and neuromuscular projection $P$. In afferent matrix $Q$, neuron indices and the muscles' Ia/II/Ib blocks are swapped together. Geometric distances $a_1=0.2$ m and $a_2=0.05$ m have different meanings and are not equated. Both muscle amplitudes remain $A_F=A_E=0.37$, with $\tau_c\in[50,100]$ ms and $\tau_1\in[50,200]$ ms. Equations, fitness and the 0.1 ms step are unchanged; no PD/PID controller is added.
+
+The current command obeys
+
+$$
+I_1(\theta^*)=I_0(-\theta^*),\qquad c_{1k}=(-1)^k c_{0k}.
+$$
+
+Even coefficients are equal and odd coefficients have opposite signs. In the C table stage, the second neuron's current row is the first row in reversed target order. Equal currents at every nonzero target would not implement this reflection.
+
+`MIRROR_INDICES` in `core/genome.py` defines the permutation of 52 physical fields. With `mirror_symmetry=true`, the codec retains one independent coordinate per pair and reconstructs full values before simulation. Crossover, mutation and random immigrants therefore preserve the equalities. Independent coordinates decrease from 48 to 24 for the controller, from 54 to 27 for quadratic C, and from 56 to 28 for cubic D; the C table stage uses 29 instead of 58. JSON physical-field counts remain 52, 58, 60 and 62, respectively.
+
+Asymmetric seeds are explicitly projected by averaging physical pairs and enforcing coefficient parity. Projection changes the controller, so its quality is re-evaluated. C screens projections of previous A/B/C winners; D screens A/B/C/D. The initial population centre is selected on training only. Source solutions remain preserved separately.
+
+Four branches use 50 individuals and 200 generations each. C `joint` simultaneously trains the controller and quadratic law; C `staged` uses 100 table generations, least squares, and 100 polynomial generations. D `joint` trains the controller and cubic law; D `C_transfer` starts from the best symmetric C with the earlier best symmetric D as an additional seed. The first three branches use seed 61, mutation probability 0.3 and σ=0.12→0.01; transfer uses seed 62, probability 0.2 and σ=0.06→0.005. This totals 800 generations and 40,000 training-candidate evaluations, excluding seed screening, validation and testing. All 40,000 stored genomes were checked for pair equality and muscle-time bounds.
+
+The original C banks (40/108/408 episodes; five training and 17 test targets) and D banks (8/10/18 sinusoidal scenarios) are preserved. The full population is validated at generations 1, 20, 40, …, 200, and the original seed is also eligible. Each task's winner maximizes validation fitness. Once winners are frozen, old and new solutions are evaluated on an additional bank with preregistered seed 2026102605. It does not inform training or selection. Results are in §4.2; protocol and commands are in §7.2.
+
+## 3. Analytical controllability and stability
+
+### 3.1. Mechanical controllability
+
+Linearization at a target posture with balancing torque gives
+
+$$
+\delta\dot z=A\delta z+B\delta M,\qquad
+A=\begin{pmatrix}0&1\\K_g\cos\theta^*/J&-b/J\end{pmatrix},\qquad
+B=\begin{pmatrix}0\\1/J\end{pmatrix}.
+$$
+
+The determinant of $[B,AB]$ is $-1/J^2\ne0$. Thus the two-state mechanical subsystem is locally controllable with an independently assignable signed torque. This does not establish controllability through the entire neural-muscle chain, with its force limits, activation dynamics and restricted current law.
+
+Static balance requires $M^*=-K_g\sin\theta^*$. Nonnegative forces impose
+
+$$
+-r_EF_{E,\max}\le M^*\le r_FF_{F,\max},\qquad F_{m,\max}\le A_mN_m\tau_{1,m}.
+$$
+
+The force bound follows from $0\le x_m\le1$ and is an upper bound, not a guarantee of attainability by the spiking network. A tighter bound follows from $C_{m,\max}\le30\tau_{c,m}w_m\sum_iP_{mi}$ and the corresponding saturation $x_m(C_{m,\max})$. Antagonist coactivation can make actual forces substantially exceed the minimum single-muscle requirement.
+
+{{ANALYTICAL_VALUES}}
+
+### 3.2. Conditional stability of an averaged feedback model
+
+If the complete averaged response is locally approximated by $\delta M=-K_p\delta\theta-K_d\delta\omega$, its characteristic polynomial is
+
+$$
+Js^2+(b+K_d)s+(K_p-K_g\cos\theta^*)=0.
+$$
+
+Asymptotic stability of this reduced model is equivalent to $K_p>K_g\cos\theta^*$ and $b+K_d>0$. Here $K_p,K_d$ are local response derivatives; no PD controller is inserted into the simulator.
+
+Adding a single activation lag $T>0$ gives
+
+$$
+JT s^3+(J+bT)s^2+(b+K_d-K_gT\cos\theta^*)s+(K_p-K_g\cos\theta^*)=0.
+$$
+
+Routh–Hurwitz requires positive coefficients and
+
+$$
+(J+bT)(b+K_d-K_gT\cos\theta^*)>JT(K_p-K_g\cos\theta^*).
+$$
+
+Consequently, sufficient static force does not ensure stability with activation delay. At fixed forces, the upright geometric torque derivative is $(a_1a_2)^2(F_F+F_E)/(a_1^2+a_2^2)^{3/2}>0$: coactivation alone does not supply restoring stiffness in this geometry.
+
+The complete system includes neuronal resets and $v_+^{0.6}$, whose right derivative is unbounded at zero. Standard smooth equilibrium linearization of the complete dynamics therefore requires further assumptions. Neither Floquet multipliers nor a Lyapunov function for the full hybrid system are established here. The conditions above guide analysis; finite-horizon grid trajectories do not prove global stability for all states.
+
+### 3.3. Two muscle relaxation stages
+
+For a conditional local approximation with independent calcium and force lags, neglecting extra neural delays, take $(1+T_cs)^{-1}(1+T_1s)^{-1}$, with times in seconds. Writing $K=K_g\cos\theta^*$ gives the characteristic polynomial $a_4s^4+a_3s^3+a_2s^2+a_1s+a_0$:
+
+$$
+a_4=JT_cT_1,\quad a_3=J(T_c+T_1)+bT_cT_1,
+$$
+
+$$
+a_2=J+b(T_c+T_1)-KT_cT_1,\quad a_1=b+K_d-K(T_c+T_1),\quad a_0=K_p-K.
+$$
+
+$$
+a_i>0,\qquad a_3a_2>a_4a_1,\qquad a_3a_2a_1>a_4a_1^2+a_3^2a_0.
+$$
+
+These Routh–Hurwitz conditions expose the tighter gain constraints associated with longer relaxation. They do not establish stability of a particular evolved genome: its local gains have not been identified and the full spiking system remains hybrid. Increasing time constants can smooth force without automatically improving tracking.
+
+## 4. Retraining results
+
+### 4.1. Asymmetric genomes with muscle times ≥50 ms
+
+{{RESULTS}}
+
+{{TRAINING_FIGURE}}
+
+{{RESULT_FIGURES}}
+
+The additional C→D transfer was scheduled after observing failures on the original D test bank. That bank never enters fitness or genome selection, but it informed a protocol-level decision, so its final result is an exploratory comparison. A new confirmation bank of 18 trajectories (test seed 2026102604, specified before transfer completion) is evaluated once on the frozen validation-selected D winner; it does not affect further optimization.
+
+### 4.2. Holding and tracking with symmetric genomes
+
+{{MIRROR_RESULTS}}
+
+C selects `joint` by validation: 169/408 strict successes (41.4%) compared with 0/408 for the previous asymmetric solution. Mean late RMSE including the failure penalty decreases from 2.032° to 1.281°. Table→least squares→polynomial produces 7/408 strict successes and lower validation fitness, so it is not selected. On the new confirmation bank, symmetric C completes all 408 trials with 166 successes (40.7%) and a mean late RMSE of 1.063°. The asymmetric solution completes 400/408 with no strict successes.
+
+Improvement is not uniform across targets. The diagnostic 10×10 grid gives 81/100 strict successes at each of −45° and +45°, but 0/100 at −22.5°, 0° and +22.5°. In the prescribed example starting at −30° with zero velocity, maximum angle error after 3 s is at most 1.118° for the intermediate targets; maximum speeds of 0.393–0.763 rad/s nevertheless violate the 0.35 rad/s limit. The holding figure shows +45° to illustrate a successful region, not whole-domain performance.
+
+D selects `C_transfer` with validation fitness 0.7509. On the original test, 15/18 trajectories complete compared with 14/18 for the asymmetric solution; mean RMSE over completed trajectories decreases from 4.176° to 2.858°. These means cover different subsets of completed episodes and cannot replace completion statistics. Neither variant has a strict success. On the new bank, symmetric D completes 17/18 versus 16/18, but achieves 0/18 strict successes versus 1/18 for the asymmetric solution. Mean joint-band occupancy is 58.6% for the symmetric solution, well below the required 95%.
+
+The first held-out D example completes without meeting strict success: after warm-up, angle tolerance is exceeded in 42.76% of samples and velocity-error tolerance in 1.13%. The visible lag shows that a symmetric static current map alone does not compensate muscle dynamics under a moving command. Internal states were not reset between commands.
+
+{{MIRROR_FIGURES}}
+
+Both figures use stored numerical trajectories of the selected genomes; single-example signals were recorded at 0.1 ms resolution. Full arrays, vector PDF figures and genome hashes are retained beside the images. Additional learning curves and successes across all 17 targets are in the [detailed supplement](MIRROR_SYMMETRY.en.md).
+
+## 5. Discussion
+
+Selection uses aggregate validation fitness, not the count of strictly successful episodes. These criteria need not rank controllers identically: close but oscillatory tracking across all targets may score higher than accurate holding on only part of the domain. This explains why the selected asymmetric C solution in §4.1 has no strict successes despite a higher fitness than some other branches. Validation improvements in D also did not guarantee improvement on the held-out conditions; both outcomes are reported.
+
+Correcting force direction changes the controlled plant. Historical performance under the old torque sign cannot validate controllers on the corrected model. Frozen-old-genome checks and retraining are retained separately. `Tensile` in module/version names means tension mechanics; it is not an external package or an additional controller.
+
+Both muscle A values remain 0.37. The new experiment changes the admissible muscle time scales, keeping mechanical equations, initial-condition banks and fitness fixed. Previous winners are archived and compared with the new winners. A warm-start variant may preserve approximate steady gains by rescaling w/P and N, but it cannot preserve the old fast transient response. Differences between winners do not prove a statistical advantage of either weight domain or training method.
+
+The 10×10 grid probes large angles and nonzero velocities without exhausting a continuous basin of attraction. Ten evenly spaced angles from −50° to 50° do not include zero; additional checks therefore use −5°, 0°, +5° offsets from every target at zero initial velocity. Static position accuracy does not imply dynamic tracking accuracy. D phase curves correspond to a time-dependent input rather than an autonomous equilibrium portrait.
+
+The reflection constraint in §2.10 halves the independent parameter count and preserves reflection of the equations, but does not guarantee stability or strict success. The C improvement is reproduced on a fresh bank, whereas D remains limited by dynamic tracking accuracy. These are individual runs with different histories and total budgets; identifying a causal effect of symmetry or statistical superiority requires equal-budget repeats across multiple seeds.
+
+Limitations include no experimental identification, simplified force generation, no energy penalty, one principal seed and a finite evaluation horizon. C refinement uses additional computation. Physiological optimality, global stability and statistical superiority of one GA approach cannot be inferred.
+
+## 6. Conclusions
+
+{{CONCLUSIONS}}
+
+The reproducible protocol retains winners, every generation, independent tests and numerical figure data. Mechanical controllability is proved locally with torque input, while stability conditions explicitly concern an averaged model. Further work requires repeated seeds, energy evaluation, muscle identification and hybrid-periodic-orbit analysis. Publication directions include balance and position control, integration of the sensory controller into a CPG, and a multi-link/multi-limb system visualized in a physics engine.
+
+## 7. Reproduction and file layout
+
+### 7.1. Main series with muscle times ≥50 ms
+
+{{COMMANDS}}
+
+### 7.2. Reflection-symmetry series
+
+{{MIRROR_COMMANDS}}
+
+## References
+
+1. Izhikevich E. M. Simple Model of Spiking Neurons. IEEE Transactions on Neural Networks, 2003, 14:1569–1572. [Primary paper](https://www.izhikevich.org/publications/spikes.pdf).
+2. Markin S. N. et al. Afferent control of locomotor CPG: insights from a simple neuromechanical model. Annals of the New York Academy of Sciences, 2010, 1198:21–34. DOI: 10.1111/j.1749-6632.2010.05435.x. [Full text](https://pmc.ncbi.nlm.nih.gov/articles/PMC5323435/).
+3. Prochazka A., Gorassini M. Models of ensemble firing of muscle spindle afferents recorded during normal locomotion in cats. Journal of Physiology, 1998, 507:277–291. [Primary paper](https://physoc.onlinelibrary.wiley.com/doi/10.1111/j.1469-7793.1998.277bu.x).
+
+The complete genome and selected numerical values are listed in the [appendix](APPENDIX_PARAMETERS.en.md).

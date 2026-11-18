@@ -29,6 +29,9 @@ setup(
         'jsonschema>=4.0.0',
         'tqdm>=4.60.0',
     ],
+    extras_require={
+        'test': ['pytest>=7', 'pytest-asyncio>=0.21', 'scipy>=1.7'],
+    },
     
     entry_points={
         'console_scripts': [

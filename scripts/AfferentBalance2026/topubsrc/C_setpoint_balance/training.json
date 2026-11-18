@@ -1,0 +1,11 @@
+{
+  "population": 50,
+  "generations": 500,
+  "seed": 43,
+  "mutation_probability": 0.3,
+  "sigma_start": 0.2,
+  "sigma_end": 0.015,
+  "validation_every": 20,
+  "workers": 1,
+  "method": "joint"
+}

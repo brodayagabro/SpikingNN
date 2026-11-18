@@ -8,7 +8,7 @@ from typing import Union, Dict, Any, Optional
 from pathlib import Path
 
 # Используем абсолютные импорты для согласованности с pytest и структурой проекта
-from SpikingNN.Izh_net import (
+from SpikingNN.core.Izh_net import (
     Izhikevich_IO_Network,
     Afferented_Limb,
     SimpleAdaptedMuscle,
@@ -16,7 +16,7 @@ from SpikingNN.Izh_net import (
     Afferents
 )
 
-from SpikingNN.Var_Limb import Var_Limb
+from SpikingNN.core.Var_Limb import Var_Limb
 
 
 def _numpy_to_list(arr: np.ndarray) -> dict:

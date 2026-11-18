@@ -1,0 +1,26 @@
+{
+  "winner": {
+    "run": "N50_G150_seed29",
+    "population": 50,
+    "generations": 150,
+    "seed": 29,
+    "fitness": 0.9790570010950834,
+    "training_rmse_deg": 1.3300215821908665,
+    "continuation_rmse_deg": 2.129463713764785,
+    "continuation_amplitude_deg": 9.606026226083435,
+    "continuation_phase_error_deg": 13.773644292175158,
+    "continuation_frequency_hz": 1.0025097226784259,
+    "failure": 0
+  },
+  "api_max_absolute_errors": {
+    "V": 3.6201619479925284e-10,
+    "U": 2.7906565946977935e-12,
+    "q": 0.0,
+    "w": 0.0,
+    "force_flex": 0.0,
+    "force_ext": 0.0,
+    "afferents": 8.881784197001252e-16
+  },
+  "api_training_rmse_deg": 1.33002158219086,
+  "note": "A fixed-initial-state pilot. No robust phase-locking to an external clock is claimed."
+}

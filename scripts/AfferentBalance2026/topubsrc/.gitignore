@@ -1,0 +1,25 @@
+__pycache__/
+*.pyc
+*.nbc
+*.nbi
+.venv/
+.ipynb_checkpoints/
+results/
+fresh_results/
+*/reference/
+verification.json
+training_verification.json
+published_results.json
+rate100_results.json
+grid_rate100_results.json
+appendix_genomes.json
+article_update.json
+reset_*.json
+*.log
+*.swp
+*.swo
+*~
+
+# Commit notebook sources and selected genome JSON; regenerate numerical outputs.
+!*/explore.ipynb
+!*/genomes/*.json

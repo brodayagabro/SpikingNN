@@ -25,6 +25,13 @@ With devmode:
 pip install -e .
 ```
 
+Install test dependencies and run the suite:
+
+```bash
+pip install -e '.[test]'
+python -m pytest tests -q
+```
+
 ## Command Line Interface (CLI)
 
 SpikingNN provides a command-line interface for running simulations and launching the GUI.
@@ -107,6 +114,15 @@ print(f"Membrane potentials shape: {data['V'].shape}")
 print(f"Recovery variables shape: {data['U'].shape}")
 ```
 
+`run_simulation(sim)` uses `simulation.input_current` from the configuration;
+`run_simulation(sim, {})` advances with zero external current. Repeated calls
+continue the current state; construct a new simulation for an independent run.
+For `fullsys`, `data['limbs'][name]` also contains histories of angle, angular
+velocity, muscle forces and all six afferent channels. See [API documentation](docs/api/README.md).
+
+Pass `progress=True` to `run_simulation` or `run_simulation_async` to display a
+`tqdm` progress bar. The CLI supports `spikingnn sim config.json --progress`.
+
 ### Additional afferent input
 
 The low-level limb API accepts a finite NumPy vector of shape `(6,)` in the
@@ -147,6 +163,8 @@ python examples/example_additional_afferents.py --no-show
 The default output is `additional_afferents_example.png` (20 × 12 inches,
 150 DPI). The example uses the installed package's `SpikingNN.core` imports;
 install it with `python -m pip install -e .` before running.
+See the [rendered example](examples/additional_afferents_example.png) using
+the tensile muscle moments without the former artificial factor of ten.
 
 ### Async API
 

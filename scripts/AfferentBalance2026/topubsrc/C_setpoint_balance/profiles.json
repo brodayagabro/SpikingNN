@@ -1,0 +1,33 @@
+{
+  "fast": {
+    "parameters": {
+      "muscles.flexor.tau_c": {
+        "value": 20,
+        "minimum": 5.1,
+        "maximum": 100
+      },
+      "muscles.flexor.tau_1": {
+        "value": 20,
+        "minimum": 5.1,
+        "maximum": 100
+      },
+      "muscles.extensor.tau_c": {
+        "value": 20,
+        "minimum": 5.1,
+        "maximum": 100
+      },
+      "muscles.extensor.tau_1": {
+        "value": 20,
+        "minimum": 5.1,
+        "maximum": 100
+      }
+    },
+    "training": {
+      "method": "staged"
+    }
+  },
+  "slow": {},
+  "mirror": {
+    "mirror_symmetry": true
+  }
+}

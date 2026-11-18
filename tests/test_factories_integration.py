@@ -9,6 +9,7 @@ from matplotlib import pyplot as plt
 import json
 import tempfile
 import os
+from pathlib import Path
 
 # Импорт фабрик и ядра
 from SpikingNN.core.factories import (
@@ -94,7 +95,7 @@ def test_IzhIOnet_via_factory():
             ]
         },
         "synaptic_dynamics": {
-            "tau_syn_ms": 20.0
+            "default_tau_ms": 20.0
         },
         "interfaces": {
             "Q_app": [
@@ -125,7 +126,7 @@ def test_IzhIOnet_via_factory():
     print("✅ Network step successful via Factory.")
 
 
-def test_IzhIOnet_sym_via_factory():
+def test_IzhIOnet_sym_via_factory(tmp_path):
     """
     Тест симуляции сети с афферентами через NetworkFactory.
     Эквивалент test_IzhIOnet_sym.
@@ -209,12 +210,12 @@ def test_IzhIOnet_sym_via_factory():
     plt.title("Spike Raster (Factory)")
     
     plt.tight_layout()
-    plt.savefig("test_factory_network_sym.png")
+    plt.savefig(tmp_path / "test_factory_network_sym.png")
     print("📊 Plot saved to test_factory_network_sym.png")
     # plt.show() # Раскомментируйте для просмотра
 
 
-def test_Afferented_Limb_via_factories():
+def test_Afferented_Limb_via_factories(tmp_path):
     """
     Тест афферентированной конечности через LimbFactory и MuscleFactory.
     Эквивалент test_Afferented_Limb.
@@ -326,12 +327,12 @@ def test_Afferented_Limb_via_factories():
     plt.legend()
 
     plt.tight_layout()
-    plt.savefig("test_factory_limb.png")
+    plt.savefig(tmp_path / "test_factory_limb.png")
     print(" Plot saved to test_factory_limb.png")
     # plt.show()
 
 
-def test_Net_Limb_connect_via_factories():
+def test_Net_Limb_connect_via_factories(tmp_path):
     """
     Тест полной системы Net_Limb_connect через все фабрики.
     Эквивалент test_Net_Limb_connect.
@@ -363,7 +364,7 @@ def test_Net_Limb_connect_via_factories():
             ]
         },
         "synaptic_dynamics": {
-            "tau_syn_ms": 20.0
+            "default_tau_ms": 20.0
         },
         "interfaces": {
             "Q_app": [
@@ -478,7 +479,7 @@ def test_Net_Limb_connect_via_factories():
     plt.title("Kinematics (Factory System)")
     
     plt.tight_layout()
-    plt.savefig("test_factory_full_system.png")
+    plt.savefig(tmp_path / "test_factory_full_system.png")
     print("📊 Plot saved to test_factory_full_system.png")
     # plt.show()
 
@@ -489,8 +490,8 @@ if __name__ == "__main__":
     print("="*50)
     
     test_IzhIOnet_via_factory()
-    test_IzhIOnet_sym_via_factory()
-    test_Afferented_Limb_via_factories()
-    test_Net_Limb_connect_via_factories()
+    test_IzhIOnet_sym_via_factory(Path.cwd())
+    test_Afferented_Limb_via_factories(Path.cwd())
+    test_Net_Limb_connect_via_factories(Path.cwd())
     
     print("\n✅ All factory integration tests completed successfully!")

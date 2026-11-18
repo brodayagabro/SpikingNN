@@ -19,8 +19,8 @@ from typing import Callable
 
 # Import from SpikingNN package
 from SpikingNN.Networks.Rybak2002 import Rybak_2002_network
-from SpikingNN.Izh_net import *
-from SpikingNN.Var_Limb import *
+from SpikingNN.core.Izh_net import *
+from SpikingNN.core.Var_Limb import *
 from dynamics import run_simulation
 
 

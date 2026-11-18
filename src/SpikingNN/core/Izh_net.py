@@ -711,7 +711,8 @@ class OneDOFLimb(Pendulum):
         L_ext = self.L(np.pi-self.q)
         h_flex = self.h(L_flex, self.q)
         h_ext = self.h(L_ext, np.pi-self.q)
-        self.M_tot = 10 * F_flex*h_flex - 10 * F_ext*h_ext + M
+        # Positive tension shortens a tendon: M_i = -F_i * dL_i/dq.
+        self.M_tot = -F_flex*h_flex + F_ext*h_ext + M
         return super().step(dt=dt, M=self.M_tot)
 
 
@@ -1194,4 +1195,3 @@ def run(net, flexor, extensor, Limb, T, Iapp):
         extensor.step(dt=dt, u=ue)
         Limb.step(dt=dt, F_flex = flexor.F, F_ext = extensor.F)
     return U, V, Cn_f, X_f, F_f, Cn_e, X_e, F_e, W, Q 
-

@@ -687,10 +687,14 @@ class TestAfferentedLimbFactory:
             with pytest.raises(ValueError, match="Invalid extensor muscle configuration"):
                 AfferentedLimbFactory.create_from_dict({"flexor": {}, "extensor": {}})
 
-    def test_assembled_limb_functionality(self):
+    @pytest.mark.parametrize("uf,ue,direction", [
+        (20.0, 0.0, -1),
+        (0.0, 20.0, 1),
+    ], ids=["flexor", "extensor"])
+    def test_assembled_limb_functionality(self, uf, ue, direction):
         """
         Интеграционный тест: проверка работы собранной конечности.
-        Проверяем изменение состояния после нескольких шагов симуляции.
+        Проверяем направление движения при натяжении каждой мышцы.
         """
         config = {
             "mechanics": {"mass": 0.3, "length": 0.3},
@@ -703,17 +707,14 @@ class TestAfferentedLimbFactory:
         initial_q = limb.q
         initial_w = limb.w
         
-        # Делаем 100 шагов симуляции с сильной активацией сгибателя
+        # 500 шагов по 0,1 мс: активна только одна из мышц-антагонистов.
         for _ in range(500):
-            limb.step(dt=0.1, uf=20.0, ue=0.0)
-        
-        # После 100 шагов (10 мс) угол должен измениться заметно
-        # Или хотя бы должна появиться угловая скорость
-        assert limb.w != 0.0, "Angular velocity should not be zero after stimulation"
-        
-        # Угол должен измениться (конечность согнется)
-        # Допускаем небольшую погрешность, но изменение должно быть существенным
-        assert abs(limb.q - initial_q) > 0.01, f"Angle did not change significantly: {initial_q} -> {limb.q}"
-        
-        # Сила сгибателя должна вырасти
-        assert limb.F_flex > 0.1, "Flexor force should increase after stimulation"
+            limb.step(dt=0.1, uf=uf, ue=ue)
+
+        # M_i = -F_i * dL_i/dq: натяжение направлено к своему креплению.
+        assert direction * (limb.q - initial_q) > 0.0
+        assert direction * (limb.w - initial_w) > 0.0
+        active_force = limb.F_flex if uf else limb.F_ext
+        inactive_force = limb.F_ext if uf else limb.F_flex
+        assert active_force > 0.1
+        assert inactive_force == 0.0

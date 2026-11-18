@@ -1,0 +1,42 @@
+{
+  "schema": "afferent_experiment_run_v1",
+  "preset": "C_setpoint_balance_tau50_v1",
+  "search": {
+    "population": 3,
+    "generations": 2,
+    "checkpoints": [
+      1,
+      2
+    ],
+    "validation_every": 1,
+    "method": "staged"
+  },
+  "runtime": {
+    "workers": 1
+  },
+  "storage": {
+    "recording_stride": 10,
+    "replay": true,
+    "figures": true,
+    "output": "../../results/smoke_C_staged"
+  },
+  "protocol": {
+    "replay": {
+      "angles_deg": [
+        -50,
+        0,
+        50
+      ],
+      "speeds_rad_s": [
+        0
+      ],
+      "duration_s": 0.02
+    },
+    "balance": {
+      "duration_s": 0.02,
+      "training_count": 4,
+      "validation_count": 4,
+      "test_count": 4
+    }
+  }
+}

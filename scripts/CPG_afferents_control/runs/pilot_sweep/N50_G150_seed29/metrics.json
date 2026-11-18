@@ -1,0 +1,71 @@
+{
+  "numba_training": {
+    "fitness": 0.9790561201543394,
+    "rmse_deg": 1.3300497561895381,
+    "velocity_rmse_deg_s": 9.870250028703596,
+    "mean_force_N": 0.3626239765888439,
+    "max_error_deg": 2.8981340832686886,
+    "survival_s": 10.0,
+    "failure": 0.0
+  },
+  "long_run_failure": 0,
+  "baseline_failure": 0,
+  "long_run_survival_s": 20.0,
+  "selection": "Maximum training fitness; the continuation after training duration is reported only, never used for selection.",
+  "training": {
+    "fitness": 0.9790570010950834,
+    "rmse_deg": 1.3300215821908665,
+    "velocity_rmse_deg_s": 9.870023928112978,
+    "mean_force_N": 0.3626225847505301,
+    "max_error_deg": 2.898138846377026,
+    "survival_s": 10.0,
+    "failure": 0.0
+  },
+  "trajectory_backend": "SpikingNN API",
+  "numba_vs_api_max_q_error_deg": 0.4634431080788716,
+  "training_diagnostics": {
+    "window_s": [
+      2.0,
+      10.0
+    ],
+    "rmse_deg": 1.3300497561895381,
+    "mean_angle_deg": 89.06966936631655,
+    "robust_half_range_deg": 9.637502548967753,
+    "fitted_target_amplitude_deg": 9.494303168254214,
+    "phase_error_deg": -0.031220521483564124,
+    "dominant_motion_frequency_hz": 1.003823462802653,
+    "harmonic_residual_rmse_deg": 0.8807034279779695,
+    "RG_F_burst_frequency_hz": 1.0033759508139894,
+    "RG_E_burst_frequency_hz": 0.3277132026000263
+  },
+  "continuation_diagnostics": {
+    "window_s": [
+      10.0,
+      20.0
+    ],
+    "rmse_deg": 2.129463713764785,
+    "mean_angle_deg": 89.07306796174133,
+    "robust_half_range_deg": 9.630156934438538,
+    "fitted_target_amplitude_deg": 9.606026226083435,
+    "phase_error_deg": 13.773644292175158,
+    "dominant_motion_frequency_hz": 1.0025097226784259,
+    "harmonic_residual_rmse_deg": 0.9140495800520684,
+    "RG_F_burst_frequency_hz": 1.0008134768351638,
+    "RG_E_burst_frequency_hz": 0.6674261030861707
+  },
+  "baseline_diagnostics": {
+    "window_s": [
+      2.0,
+      10.0
+    ],
+    "rmse_deg": 17.48506315962236,
+    "mean_angle_deg": 73.79604936235265,
+    "robust_half_range_deg": 3.066232702742738,
+    "fitted_target_amplitude_deg": 1.0640927413709032,
+    "phase_error_deg": -12.53768535560573,
+    "dominant_motion_frequency_hz": 0.9444207165997411,
+    "harmonic_residual_rmse_deg": 1.726397581232119,
+    "RG_F_burst_frequency_hz": 4.88656733012266,
+    "RG_E_burst_frequency_hz": 4.88863796193716
+  }
+}

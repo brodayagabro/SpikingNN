@@ -10,6 +10,7 @@ import json
 import tempfile
 import asyncio
 import numpy as np
+import pytest
 from SpikingNN import create_simulation, run_simulation, run_simulation_async, get_results
 
 
@@ -86,9 +87,11 @@ def test_sync_api():
     print(f"  V range: [{data['V'].min():.2f}, {data['V'].max():.2f}]")
     print(f"  U range: [{data['U'].min():.2f}, {data['U'].max():.2f}]")
     
-    return data
+    assert data["V"].shape == (len(data["time"]), sim.network.N)
+    assert np.isfinite(data["V"]).all()
 
 
+@pytest.mark.asyncio
 async def test_async_api():
     """Test the asynchronous API."""
     print("\nTesting asynchronous API...")
@@ -120,7 +123,8 @@ async def test_async_api():
     print(f"  V shape: {data['V'].shape}")
     print(f"  U shape: {data['U'].shape}")
     
-    return data
+    assert data["V"].shape == (len(data["time"]), sim.network.N)
+    assert np.isfinite(data["V"]).all()
 
 
 def test_different_signal_types():

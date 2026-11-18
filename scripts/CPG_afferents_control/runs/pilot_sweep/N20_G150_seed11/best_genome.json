@@ -1,0 +1,1724 @@
+{
+  "format": "cpg-afferents-genome-v1",
+  "name": "cpg_sine_ga_solution",
+  "status": "Геном после генетической оптимизации; качество и ограничения указаны в training и metrics.json.",
+  "system_file": "system.json",
+  "source": {
+    "citation": "Markin SN, Klishko AN, Shevtsova NA, Lemay MA, Prilutsky BI, Rybak IA (2010). Afferent control of locomotor CPG: insights from a simple neuromechanical model. Ann N Y Acad Sci 1198:21–34.",
+    "doi": "10.1111/j.1749-6632.2010.05435.x",
+    "url": "https://pmc.ncbi.nlm.nih.gov/articles/PMC5323435/",
+    "topology": "Figure 1 and Table 1: 10 populations, 14 recurrent connections, 14 sensory projections."
+  },
+  "adaptation": [
+    "Одна популяция статьи представлена одним спайковым нейроном Ижикевича SpikingNN; ионные токи исходной статьи не воспроизводятся.",
+    "RG-F/E: CH с a=0.005 вместо пресета a=0.02; остальные нейроны используют параметры RS/FS из SpikingNN.",
+    "Рекуррентные веса Table 1 умножены на 3; знаки ингибиторных весов отрицательны; tau=20 ms для всех существующих связей.",
+    "Коэффициенты афферентных проекций Table 1 численно сохранены, но теперь они преобразуют афферентный сигнал в ток Ижикевича.",
+    "Драйвы RG-F=8, RG-E=7.84, PF-F=PF-E=40, In=6; постоянные входы d1=d2=1. Асимметрия RG на 2% запускает чередование без случайного шума.",
+    "OneDOFLimb и SimpleAdaptedMuscle заменяют Hill-мышцы и механику с реакцией опоры из статьи; здесь свободная конечность без контакта с опорой.",
+    "Параметры служат демонстрации работоспособности, а не количественной репликации экспериментов Markin 2010."
+  ],
+  "neuron_order": [
+    "RG-F",
+    "RG-E",
+    "In-F",
+    "In-E",
+    "PF-F",
+    "PF-E",
+    "In",
+    "Inab-E",
+    "Mn-F",
+    "Mn-E"
+  ],
+  "neuron_roles": {
+    "RG-F/E": "Ритмогенерирующие возбуждающие нейроны сгибательного/разгибательного полуцентра.",
+    "In-F/E": "Тормозят противоположные RG и PF; In-E также тормозит In.",
+    "PF-F/E": "Возбуждающий слой формирования моторного паттерна.",
+    "In": "Тонически возбуждаемый тормозный интернейрон, тормозит Inab-E.",
+    "Inab-E": "Возбуждает Mn-E; получает PF-E, Ia-E, Ib-E и торможение от In.",
+    "Mn-F/E": "Мотонейроны сгибателя/разгибателя, единственные выходы на мышцы."
+  },
+  "afferent_order": [
+    "Ia-F",
+    "II-F",
+    "Ib-F",
+    "Ia-E",
+    "II-E",
+    "Ib-E"
+  ],
+  "input_order": [
+    "d1: supraspinal drive to RG-F/E and PF-F/E",
+    "d2: tonic external drive to In"
+  ],
+  "output_order": [
+    "flexor",
+    "extensor"
+  ],
+  "matrix_conventions": {
+    "weights_and_tau_syn": "[target neuron][source neuron]",
+    "Q_app_and_Q_aff": "[target neuron][input channel]",
+    "P": "[muscle][source neuron]",
+    "connectivity": "[source neuron, target neuron, sign]"
+  },
+  "fixed_parameters": {
+    "description": "Топология, знаки, выходная P, геометрия, dt и число мышечных единиц не входят в хромосому.",
+    "muscle_N": 1,
+    "muscle_m": 2.5,
+    "muscle_k": 0.75,
+    "afferent_F_th_N": 3.38,
+    "afferent_L_th": "sqrt(tendon_a1**2 + tendon_a2**2)",
+    "initial_state": "Нейроны: V=c, U=b*c, синаптические токи 0; мышцы и афференты 0; q=pi/2, w=0."
+  },
+  "editing": {
+    "values": "Менять genes[*].value в пределах bounds; эти значения перекрывают system.json.",
+    "mechanics_and_time": "Параметры механики и duration находятся в system.json. Все времена JSON в ms; --duration в CLI в s.",
+    "bounds": "Это предлагаемые диапазоны будущего поиска. Они не гарантируют устойчивость и осмысленную динамику каждого генома.",
+    "chromosome": "95 генов в порядке списка. encode_genome/decode_genome из simulate.py переводят значения в [0,1] и обратно.",
+    "linear": "z=(value-min)/(max-min). Используется в том числе для отрицательных весов.",
+    "log": "z=log(value/min)/log(max/min). Только для положительных параметров.",
+    "fixed_topology": "Новые связи и изменение знаков запрещены; для отключения афферентной обратной связи используйте --no-feedback."
+  },
+  "genes": [
+    {
+      "name": "RG-F.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        0
+      ],
+      "value": 0.0026754978397390263,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "RG-F.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        0
+      ],
+      "value": 0.2400770976566716,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-F.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        0
+      ],
+      "value": -48.01328904334837,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "RG-F.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        0
+      ],
+      "value": 0.22197294459367448,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "RG-E.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        1
+      ],
+      "value": 0.0026754978397390263,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "RG-E.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        1
+      ],
+      "value": 0.2400770976566716,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-E.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        1
+      ],
+      "value": -48.01328904334837,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "RG-E.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        1
+      ],
+      "value": 0.22197294459367448,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "In-F.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        2
+      ],
+      "value": 0.1,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "In-F.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        2
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-F.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        2
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "In-F.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        2
+      ],
+      "value": 2.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "In-E.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        3
+      ],
+      "value": 0.1,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "In-E.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        3
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-E.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        3
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "In-E.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        3
+      ],
+      "value": 2.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "PF-F.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        4
+      ],
+      "value": 0.02,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "PF-F.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        4
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "PF-F.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        4
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "PF-F.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        4
+      ],
+      "value": 8.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "PF-E.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        5
+      ],
+      "value": 0.02,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "PF-E.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        5
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "PF-E.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        5
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "PF-E.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        5
+      ],
+      "value": 8.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "In.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        6
+      ],
+      "value": 0.1,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "In.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        6
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        6
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "In.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        6
+      ],
+      "value": 2.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "Inab-E.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        7
+      ],
+      "value": 0.1,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "Inab-E.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        7
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Inab-E.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        7
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "Inab-E.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        7
+      ],
+      "value": 2.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "Mn-F.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        8
+      ],
+      "value": 0.02,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "Mn-F.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        8
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Mn-F.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        8
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "Mn-F.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        8
+      ],
+      "value": 8.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "Mn-E.a",
+      "path": [
+        "network",
+        "neuron_params",
+        "a",
+        9
+      ],
+      "value": 0.02,
+      "bounds": [
+        0.0005,
+        0.12
+      ],
+      "scale": "log",
+      "unit": "1/ms"
+    },
+    {
+      "name": "Mn-E.b",
+      "path": [
+        "network",
+        "neuron_params",
+        "b",
+        9
+      ],
+      "value": 0.2,
+      "bounds": [
+        0.15,
+        0.3
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Mn-E.c",
+      "path": [
+        "network",
+        "neuron_params",
+        "c",
+        9
+      ],
+      "value": -65.0,
+      "bounds": [
+        -80,
+        -45
+      ],
+      "scale": "linear",
+      "unit": "mV"
+    },
+    {
+      "name": "Mn-E.d",
+      "path": [
+        "network",
+        "neuron_params",
+        "d",
+        9
+      ],
+      "value": 8.0,
+      "bounds": [
+        0.1,
+        12
+      ],
+      "scale": "log",
+      "unit": "API recovery increment"
+    },
+    {
+      "name": "RG-F->In-F.weight",
+      "path": [
+        "network",
+        "weights",
+        2,
+        0
+      ],
+      "value": 0.6728785366387636,
+      "bounds": [
+        0.3075,
+        4.92
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-F->In-F.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        2,
+        0
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "RG-F->PF-F.weight",
+      "path": [
+        "network",
+        "weights",
+        4,
+        0
+      ],
+      "value": 2.0556012636065404,
+      "bounds": [
+        0.5249999999999999,
+        8.399999999999999
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-F->PF-F.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        4,
+        0
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "RG-E->In-E.weight",
+      "path": [
+        "network",
+        "weights",
+        3,
+        1
+      ],
+      "value": 0.6728785366387636,
+      "bounds": [
+        0.3075,
+        4.92
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-E->In-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        3,
+        1
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "RG-E->PF-E.weight",
+      "path": [
+        "network",
+        "weights",
+        5,
+        1
+      ],
+      "value": 2.0556012636065404,
+      "bounds": [
+        0.5249999999999999,
+        8.399999999999999
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "RG-E->PF-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        5,
+        1
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "PF-F->Mn-F.weight",
+      "path": [
+        "network",
+        "weights",
+        8,
+        4
+      ],
+      "value": 2.9840843692821033,
+      "bounds": [
+        1.4625,
+        23.4
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "PF-F->Mn-F.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        8,
+        4
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "PF-E->Inab-E.weight",
+      "path": [
+        "network",
+        "weights",
+        7,
+        5
+      ],
+      "value": 0.5447411274769036,
+      "bounds": [
+        0.26249999999999996,
+        4.199999999999999
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "PF-E->Inab-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        7,
+        5
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "PF-E->Mn-E.weight",
+      "path": [
+        "network",
+        "weights",
+        9,
+        5
+      ],
+      "value": 1.9893895795214025,
+      "bounds": [
+        0.9750000000000001,
+        15.600000000000001
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "PF-E->Mn-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        9,
+        5
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "Inab-E->Mn-E.weight",
+      "path": [
+        "network",
+        "weights",
+        9,
+        7
+      ],
+      "value": 1.2548457347750384,
+      "bounds": [
+        0.615,
+        9.84
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Inab-E->Mn-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        9,
+        7
+      ],
+      "value": 13.822083921694325,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In-F->RG-E.weight",
+      "path": [
+        "network",
+        "weights",
+        1,
+        2
+      ],
+      "value": -6.527770084265816,
+      "bounds": [
+        -26.400000000000002,
+        -1.6500000000000001
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-F->RG-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        1,
+        2
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In-F->PF-E.weight",
+      "path": [
+        "network",
+        "weights",
+        5,
+        2
+      ],
+      "value": -19.583310252797446,
+      "bounds": [
+        -79.19999999999999,
+        -4.949999999999999
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-F->PF-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        5,
+        2
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In-E->RG-F.weight",
+      "path": [
+        "network",
+        "weights",
+        0,
+        3
+      ],
+      "value": -6.527770084265816,
+      "bounds": [
+        -26.400000000000002,
+        -1.6500000000000001
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-E->RG-F.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        0,
+        3
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In-E->PF-F.weight",
+      "path": [
+        "network",
+        "weights",
+        4,
+        3
+      ],
+      "value": -19.583310252797446,
+      "bounds": [
+        -79.19999999999999,
+        -4.949999999999999
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-E->PF-F.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        4,
+        3
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In-E->In.weight",
+      "path": [
+        "network",
+        "weights",
+        6,
+        3
+      ],
+      "value": -8.30807101633831,
+      "bounds": [
+        -33.599999999999994,
+        -2.0999999999999996
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In-E->In.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        6,
+        3
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "In->Inab-E.weight",
+      "path": [
+        "network",
+        "weights",
+        7,
+        6
+      ],
+      "value": -1.631942521066454,
+      "bounds": [
+        -6.6000000000000005,
+        -0.41250000000000003
+      ],
+      "scale": "linear",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "In->Inab-E.tau_ms",
+      "path": [
+        "network",
+        "tau_syn",
+        7,
+        6
+      ],
+      "value": 4.7315444476717365,
+      "bounds": [
+        2,
+        80
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "Ia-F->RG-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        0,
+        0
+      ],
+      "value": 0.1070503003443824,
+      "bounds": [
+        0.006,
+        1.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-F->In-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        2,
+        0
+      ],
+      "value": 0.4817263515497209,
+      "bounds": [
+        0.027000000000000003,
+        5.4
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-F->PF-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        4,
+        0
+      ],
+      "value": 0.33899261775721096,
+      "bounds": [
+        0.019000000000000003,
+        3.8
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "II-F->RG-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        0,
+        1
+      ],
+      "value": 0.06208917419974179,
+      "bounds": [
+        0.00348,
+        0.696
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "II-F->In-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        2,
+        1
+      ],
+      "value": 0.27940128389883806,
+      "bounds": [
+        0.01566,
+        3.1319999999999997
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "II-F->PF-F.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        4,
+        1
+      ],
+      "value": 0.19661571829918237,
+      "bounds": [
+        0.011020000000000002,
+        2.204
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-E->RG-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        1,
+        3
+      ],
+      "value": 0.1070503003443824,
+      "bounds": [
+        0.006,
+        1.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-E->In-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        3,
+        3
+      ],
+      "value": 0.7850355358588043,
+      "bounds": [
+        0.044000000000000004,
+        8.8
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-E->PF-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        5,
+        3
+      ],
+      "value": 0.17841716724063736,
+      "bounds": [
+        0.010000000000000002,
+        2.0
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ia-E->Inab-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        7,
+        3
+      ],
+      "value": 0.28546746758501973,
+      "bounds": [
+        0.016,
+        3.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ib-E->RG-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        1,
+        5
+      ],
+      "value": 0.045858058543041924,
+      "bounds": [
+        0.006600000000000001,
+        1.32
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ib-E->In-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        3,
+        5
+      ],
+      "value": 0.33629242931564074,
+      "bounds": [
+        0.0484,
+        9.68
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ib-E->PF-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        5,
+        5
+      ],
+      "value": 0.07643009757173654,
+      "bounds": [
+        0.011000000000000001,
+        2.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "Ib-E->Inab-E.gain",
+      "path": [
+        "network",
+        "Q_aff",
+        7,
+        5
+      ],
+      "value": 0.12228815611477845,
+      "bounds": [
+        0.0176,
+        3.5199999999999996
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "drive1->RG-F",
+      "path": [
+        "network",
+        "Q_app",
+        0,
+        0
+      ],
+      "value": 5.957693752867811,
+      "bounds": [
+        2.0,
+        24.0
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "drive1->RG-E",
+      "path": [
+        "network",
+        "Q_app",
+        1,
+        0
+      ],
+      "value": 18.000152357801543,
+      "bounds": [
+        1.96,
+        23.52
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "drive1->PF-F",
+      "path": [
+        "network",
+        "Q_app",
+        4,
+        0
+      ],
+      "value": 30.018092000990606,
+      "bounds": [
+        10.0,
+        120.0
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "drive1->PF-E",
+      "path": [
+        "network",
+        "Q_app",
+        5,
+        0
+      ],
+      "value": 30.018092000990606,
+      "bounds": [
+        10.0,
+        120.0
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "drive2->In",
+      "path": [
+        "network",
+        "Q_app",
+        6,
+        1
+      ],
+      "value": 3.031599760100239,
+      "bounds": [
+        1.5,
+        18.0
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "flexor.w",
+      "path": [
+        "limbs",
+        0,
+        "flexor",
+        "w"
+      ],
+      "value": 0.051047677008280806,
+      "bounds": [
+        0.005,
+        0.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "flexor.A",
+      "path": [
+        "limbs",
+        0,
+        "flexor",
+        "A"
+      ],
+      "value": 0.23008492380705114,
+      "bounds": [
+        0.05,
+        0.8
+      ],
+      "scale": "log",
+      "unit": "N/ms"
+    },
+    {
+      "name": "flexor.tau_c",
+      "path": [
+        "limbs",
+        0,
+        "flexor",
+        "tau_c"
+      ],
+      "value": 83.31936937126547,
+      "bounds": [
+        10,
+        150
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "flexor.tau_1",
+      "path": [
+        "limbs",
+        0,
+        "flexor",
+        "tau_1"
+      ],
+      "value": 15.529225638338984,
+      "bounds": [
+        10,
+        150
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "extensor.w",
+      "path": [
+        "limbs",
+        0,
+        "extensor",
+        "w"
+      ],
+      "value": 0.051047677008280806,
+      "bounds": [
+        0.005,
+        0.2
+      ],
+      "scale": "log",
+      "unit": "API coefficient"
+    },
+    {
+      "name": "extensor.A",
+      "path": [
+        "limbs",
+        0,
+        "extensor",
+        "A"
+      ],
+      "value": 0.08106071810625397,
+      "bounds": [
+        0.05,
+        0.8
+      ],
+      "scale": "log",
+      "unit": "N/ms"
+    },
+    {
+      "name": "extensor.tau_c",
+      "path": [
+        "limbs",
+        0,
+        "extensor",
+        "tau_c"
+      ],
+      "value": 83.31936937126547,
+      "bounds": [
+        10,
+        150
+      ],
+      "scale": "log",
+      "unit": "ms"
+    },
+    {
+      "name": "extensor.tau_1",
+      "path": [
+        "limbs",
+        0,
+        "extensor",
+        "tau_1"
+      ],
+      "value": 15.529225638338984,
+      "bounds": [
+        10,
+        150
+      ],
+      "scale": "log",
+      "unit": "ms"
+    }
+  ],
+  "training": {
+    "task": {
+      "frequency_hz": 1.0,
+      "amplitude_deg": 10.0,
+      "center_deg": 90.0,
+      "phase_rad": 0.0,
+      "duration_s": 10.0,
+      "score_start_s": 2.0,
+      "velocity_weight": 0.15,
+      "angle_limit_deg": 85.0,
+      "tonic_drive": 1.0
+    },
+    "ga": {
+      "population": 20,
+      "generations": 150,
+      "seed": 11,
+      "sigma_start": 0.12,
+      "sigma_end": 0.004,
+      "mutation_probability": 0.25
+    },
+    "generation": 150,
+    "fitness": 0.8976635102640698,
+    "rmse_deg": 3.131561160080199,
+    "configuration_sha256": "d6f7bb441485994c3ff140927807a77c781aa0a0bce739fd5054f3034c6ff283",
+    "search_values": {
+      "RG_a": 0.0026754978397390263,
+      "RG_b": 0.2400770976566716,
+      "RG_c": -48.01328904334837,
+      "RG_d": 0.22197294459367448,
+      "drive_RG_F": 5.957693752867811,
+      "drive_RG_E": 18.000152357801543,
+      "drive_PF": 30.018092000990606,
+      "drive_In": 3.031599760100239,
+      "RG_to_In_gain": 0.5470557208445233,
+      "RG_to_PF_gain": 0.9788577445745431,
+      "inhibition_gain": 0.9890560733736085,
+      "tau_exc_ms": 13.822083921694325,
+      "tau_inh_ms": 4.7315444476717365,
+      "motor_gain": 0.510099892184975,
+      "PF_to_Inab_gain": 0.5188010737875274,
+      "length_afferent_gain": 1.7841716724063734,
+      "force_afferent_gain": 0.6948190688339685,
+      "flexor_A": 0.23008492380705114,
+      "extensor_A": 0.08106071810625397,
+      "muscle_w": 0.051047677008280806,
+      "muscle_tau_c_ms": 83.31936937126547,
+      "muscle_tau_force_ms": 15.529225638338984
+    },
+    "final_evaluation": {
+      "numba_training": {
+        "fitness": 0.8976635102640698,
+        "rmse_deg": 3.131561160080199,
+        "velocity_rmse_deg_s": 20.479985358350284,
+        "mean_force_N": 0.36846282314420437,
+        "max_error_deg": 7.081777053305482,
+        "survival_s": 10.0,
+        "failure": 0.0
+      },
+      "long_run_failure": 0,
+      "baseline_failure": 0,
+      "long_run_survival_s": 20.0,
+      "selection": "Maximum training fitness; the continuation after training duration is reported only, never used for selection.",
+      "training": {
+        "fitness": 0.5407453985791904,
+        "rmse_deg": 8.518589291681737,
+        "velocity_rmse_deg_s": 57.04345740351334,
+        "mean_force_N": 0.3994684045474795,
+        "max_error_deg": 18.935425022372474,
+        "survival_s": 10.0,
+        "failure": 0.0
+      },
+      "trajectory_backend": "SpikingNN API",
+      "numba_vs_api_max_q_error_deg": 15.28013960506799,
+      "training_diagnostics": {
+        "window_s": [
+          2.0,
+          10.0
+        ],
+        "rmse_deg": 8.518502807687307,
+        "mean_angle_deg": 88.56681120716483,
+        "robust_half_range_deg": 6.783677488490909,
+        "fitted_target_amplitude_deg": 2.5839390626005447,
+        "phase_error_deg": -101.33434183836985,
+        "dominant_motion_frequency_hz": 1.2911543901821063,
+        "harmonic_residual_rmse_deg": 3.4776679028168953,
+        "RG_F_burst_frequency_hz": 1.358848618990637,
+        "RG_E_burst_frequency_hz": 2.7259957761837645
+      },
+      "continuation_diagnostics": {
+        "window_s": [
+          10.0,
+          20.0
+        ],
+        "rmse_deg": 9.702629357046082,
+        "mean_angle_deg": 88.92842981032008,
+        "robust_half_range_deg": 6.704230861807652,
+        "fitted_target_amplitude_deg": 6.368067223118204,
+        "phase_error_deg": -107.88104497639439,
+        "dominant_motion_frequency_hz": 0.9792782940750968,
+        "harmonic_residual_rmse_deg": 1.7787597561563289,
+        "RG_F_burst_frequency_hz": 0.9810169940989324,
+        "RG_E_burst_frequency_hz": 1.961690178606868
+      },
+      "baseline_diagnostics": {
+        "window_s": [
+          2.0,
+          10.0
+        ],
+        "rmse_deg": 17.48506315962236,
+        "mean_angle_deg": 73.79604936235265,
+        "robust_half_range_deg": 3.066232702742738,
+        "fitted_target_amplitude_deg": 1.0640927413709032,
+        "phase_error_deg": -12.53768535560573,
+        "dominant_motion_frequency_hz": 0.9444207165997411,
+        "harmonic_residual_rmse_deg": 1.726397581232119,
+        "RG_F_burst_frequency_hz": 4.88656733012266,
+        "RG_E_burst_frequency_hz": 4.88863796193716
+      }
+    }
+  },
+  "adaptation_note": "adaptation описывает исходную модель; обученные численные значения находятся в genes."
+}

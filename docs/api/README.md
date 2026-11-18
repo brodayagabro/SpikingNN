@@ -54,13 +54,23 @@ print(f"System type: {sim.system_type}")
 print(f"Neuron count: {sim.network.N}")
 ```
 
-### `run_simulation(simulation: Simulation, signals: dict) -> Results`
+### `run_simulation(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results`
 
 Runs a simulation with the given signals.
 
 **Parameters:**
 - `simulation` (Simulation): Simulation object created by `create_simulation()`
-- `signals` (dict): Signal parameters dictionary
+- `signals` (dict, optional): Signal parameters dictionary. Omit it or pass `None`
+  to use `simulation.input_current` from the JSON configuration. Pass `{}` to
+  select zero external current. The system advances in both cases.
+- `progress` (bool, default `False`): Show a `tqdm` progress bar counting completed
+  simulation steps. Terminal progress is written to stderr; notebooks use the
+  display supported by `tqdm.auto`. Results are unchanged.
+
+An explicit signal dictionary replaces the configured signal. Each run generates
+the signal once. Repeated runs continue the current system state, with a local
+time axis starting at zero; create a new `Simulation` for an independent repeat.
+States are recorded before each step at `time = arange(0, duration, dt)`.
 
 **Returns:**
 - `Results`: Object containing simulation data
@@ -82,13 +92,16 @@ signals = {
 results = run_simulation(sim, signals)
 ```
 
-### `run_simulation_async(simulation: Simulation, signals: dict) -> Results`
+### `run_simulation_async(simulation: Simulation, signals: dict = None, progress: bool = False) -> Results`
 
 Async version of `run_simulation()` for non-blocking execution.
+It uses the same input defaults and result format. Concurrent runs must use
+separate simulation objects, since execution changes the system state.
 
 **Parameters:**
 - `simulation` (Simulation): Simulation object
 - `signals` (dict): Signal parameters
+- `progress` (bool, default `False`): Show the same progress bar as the synchronous API.
 
 **Returns:**
 - `Results`: Coroutine that resolves to Results object
@@ -119,6 +132,18 @@ Extracts raw data from Results object.
   - `"time"`: NumPy array of time points (ms)
   - `"V"`: NumPy array of membrane potentials (shape: `[time_steps, neurons]`)
   - `"U"`: NumPy array of recovery variables (shape: `[time_steps, neurons]`)
+  - `"limbs"` (fullsys only): Dictionary indexed by limb name. Each entry contains
+    `angle_q`, `angular_velocity_w`, `force_flex`, `force_ext` arrays of shape
+    `[time_steps]`, and `afferents` of shape `[time_steps, 6]`.
+
+Limb names, including generated defaults such as `limb_0`, must be unique.
+`fullsys` requires at least one limb. These checks apply to API construction;
+the underlying core classes retain their existing behavior.
+
+CLI CSV exports add columns such as `limb_leg_angle_q` and
+`limb_leg_afferents_0`. NPZ exports store arrays such as `limb_leg_angle_q` and
+`limb_leg_afferents`, without object arrays. CLI signal flags override individual
+fields of `simulation.input_current`; `--phase` follows the Python signal rules.
 
 **Example:**
 ```python
@@ -132,6 +157,16 @@ print(f"V shape: {data['V'].shape}")
 ### `Simulation`
 
 Represents a configured simulation.
+
+`network.neuron_params` can override Izhikevich presets using arrays `a`, `b`,
+`c`, and `d`. Each supplied array must contain exactly `neuron_count` finite
+numbers in neuron-index order. Omitted parameters retain their values from
+`neuron_types` (or the core defaults if no types are supplied). Overrides are
+passed to the existing core constructor before initial states are created.
+
+For example, with `neuron_types=["CH", "FS", "CH", "FS"]`, use
+`"neuron_params": {"a": [0.003, 0.1, 0.003, 0.1]}` to change the two CPG
+neurons while preserving the motoneuron presets.
 
 **Attributes:**
 - `config` (dict): Original configuration dictionary
@@ -162,11 +197,12 @@ Contains simulation results.
 |-----------|------|---------|-------------|
 | `frequency` | float | 1.0 | Frequency in Hz (for periodic signals) |
 | `phase` | float | 0.0 | Phase shift (radians or fraction 0-1) |
-| `neurons` | list | All input neurons | Neuron indices to apply signal |
+| `neurons` | list | All input channels | Input channel indices, mapped to neurons by `Q_app` |
 
 ### Parameter Ranges
 
-For parameter sweeps, you can specify ranges:
+Range metadata can be supplied and is validated as finite `[min, max]` bounds.
+It does not execute parameter sweeps; each run uses the scalar signal parameters.
 
 | Parameter | Type | Description |
 |-----------|------|-------------|
@@ -239,10 +275,13 @@ Phase can be specified in two ways:
    "phase": 0.25  # 25% of period = 90 degrees
    ```
 
-2. **In radians:**
+2. **In radians, for values outside the interval [0, 1]:**
    ```python
    "phase": 1.5708  # pi/2 radians = 90 degrees
    ```
+
+Values in [0, 1] always mean fractions of a period. For example, `phase=0.5`
+means half a period, not 0.5 radians.
 
 ### Multi-Channel Phase Examples
 
