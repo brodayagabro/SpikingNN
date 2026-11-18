@@ -19,7 +19,7 @@ import numpy as np
 from genome import BalanceGenome, GenomeConfig, JointGenome, file_hash, load_solution, write_json
 from model import (METRIC_COLUMNS, MODEL, PARAMETERS, PARAMETER_NAMES, evaluate_population,
                    plot_replay, replay_genome, validate_duration, validate_fitness_window,
-                   DEFAULT_FITNESS_WINDOW_S)
+                   DEFAULT_FITNESS_WINDOW_S, firing_interval_steps)
 
 HERE = Path(__file__).resolve().parent
 SEARCH_KEYS = {'population', 'generations', 'seed', 'mutation_probability',
@@ -301,6 +301,37 @@ def train_phase(genome, banks, settings, output, *, center=None):
     np.savez_compressed(output/'baseline_validation.npz', scores=initial_scores, metrics=initial_metrics)
     validation_history = []
     last_validation = {}
+    improvements = []
+    (output/'best_genomes').mkdir(exist_ok=True)
+
+    def save_incumbent():
+        """Persist each validation improvement before another generation can run.
+
+        The immutable archive is written first; selection.json then points to
+        that exact file. Worker counts and wall time are not genome metadata,
+        so serial/parallel repeatability remains bit-for-bit testable.
+        """
+        measured = winner['metrics']
+        metadata = dict(selection='validation only', generation=winner['generation'],
+                        individual=winner['individual'], seed=settings['seed'], model=MODEL,
+                        validation_fitness=winner['fitness'],
+                        phase_training={k:v for k,v in settings.items() if k!='workers'})
+        archived=output/'best_genomes'/f'g{winner["generation"]:04d}_genome.json'
+        genome.save(archived,winner['unit'],**metadata)
+        genome.save(output/'best_genome.json',winner['unit'],**metadata)
+        selected={k:v for k,v in winner.items() if k not in ('unit','metrics')}
+        selected.update(genome=str(archived.relative_to(output)),genome_sha256=file_hash(archived),
+                        population=settings['population'],phase_generations=settings['generations'],
+                        mutation_probability=settings['mutation_probability'],
+                        validation_cases=len(measured),validation_success=int(measured[:,5].sum()),
+                        validation_mean_late_rmse_deg=float(np.degrees(measured[:,7]).mean()),
+                        rate_limit_feasible=bool((measured[:,0]>=0).all()),test_used_for_selection=False)
+        write_json(output/'selection.json',selected)
+        improvements.append(selected)
+        write_csv(output/'best_history.csv',improvements)
+
+    save_incumbent()
+    write_json(output/'progress.json',dict(status='running',generation=0,generations=settings['generations']))
 
     def evaluate(population):
         return evaluate_population(genome, population, banks['training'], duration)
@@ -316,6 +347,7 @@ def train_phase(genome, banks, settings, output, *, center=None):
             if val[index] > winner['fitness']:
                 winner.update(unit=population[index].copy(), fitness=float(val[index]),
                               metrics=measured[index].copy(), generation=generation, individual=index)
+                save_incumbent()
             validation_history.append(dict(generation=generation, best_fitness=float(val[index]),
                                            selected_fitness=winner['fitness']))
             np.savez_compressed(output/f'validation_{generation:04d}.npz', normalized=population,
@@ -325,6 +357,8 @@ def train_phase(genome, banks, settings, output, *, center=None):
         write_csv(output/'history.csv', history)
         np.savez_compressed(output/'checkpoint.npz', normalized=population, scores=scores,
                             generation=generation, rng_state=json.dumps(rng_state))
+        write_json(output/'progress.json',dict(status='running',generation=generation,
+                                              generations=settings['generations']))
         if due:
             print(f'{output.name}: generation {generation}/{settings["generations"]}; '
                   f'train={scores.max():.6f}; validation={winner["fitness"]:.6f}', flush=True)
@@ -339,10 +373,9 @@ def train_phase(genome, banks, settings, output, *, center=None):
                         training_scores=scores, training_metrics=measured,
                         validation_scores=last_validation['scores'], validation_metrics=last_validation['metrics'],
                         generation=settings['generations'], rng_state=json.dumps(rng))
-    genome.save(output/'best_genome.json', winner['unit'], selection='validation only',
-                generation=winner['generation'], individual=winner['individual'], seed=settings['seed'], model=MODEL)
     np.savez_compressed(output/'selected_validation.npz', scores=[winner['fitness']], metrics=winner['metrics'][None])
-    write_json(output/'selection.json', {k:v for k,v in winner.items() if k not in ('unit','metrics')})
+    write_json(output/'progress.json',dict(status='completed',generation=settings['generations'],
+                                          generations=settings['generations']))
     return winner
 
 
@@ -371,6 +404,12 @@ def finish_run(genome, winner, banks, output):
                    training=bank_summary(training_scores[0], training_metrics[0]),
                    validation=bank_summary(winner['fitness'], winner['metrics']),
                    test=bank_summary(scores[0], m))
+    rate_limit = genome.controller.data['simulation'].get('max_firing_rate_hz')
+    if rate_limit is not None:
+        summary.update(max_firing_rate_hz=rate_limit,
+                       rate_limit_definition='every interspike interval >= 1/max_firing_rate_hz, entire observed episode',
+                       rate_limit_feasible={name:bool((metrics[:, 0] >= 0).all()) for name,metrics in
+                                            [('training',training_metrics[0]),('validation',winner['metrics']),('test',m)]})
     np.savez_compressed(output/'selected_training.npz', scores=training_scores,
                         metrics=training_metrics[0], metric_columns=np.array(METRIC_COLUMNS))
     write_json(output/'result.json', summary)
@@ -392,6 +431,7 @@ def run_training(config, settings, output, bank_factory, *, saved=None, runner=N
     validate_duration(config['simulation']['duration_s'])
     fitness_window_s = validate_fitness_window(
         config['simulation'].get('fitness_window_s', DEFAULT_FITNESS_WINDOW_S))
+    firing_interval_steps(config['simulation'].get('max_firing_rate_hz'))
     make_genome(config)
     output = Path(output).resolve()
     output.mkdir(parents=True, exist_ok=False)
@@ -409,6 +449,9 @@ def run_training(config, settings, output, bank_factory, *, saved=None, runner=N
                       receptor_constants=dict(zip(PARAMETER_NAMES, PARAMETERS)),
                       code_sha256={str(p.relative_to(HERE)):file_hash(p)
                                    for p in sorted([*HERE.glob('*.py'), *HERE.glob('*/experiment.py')])})
+    if config['simulation'].get('max_firing_rate_hz') is not None:
+        provenance['max_firing_rate_hz'] = config['simulation']['max_firing_rate_hz']
+        provenance['rate_constraint'] = 'hard bank feasibility, minimum ISI over entire episode; neuron dynamics unchanged'
     if saved is not None:
         source, unit = saved
         write_json(output/'source_genome.json', source.payload(unit, model=MODEL))
@@ -465,6 +508,7 @@ def _training_inputs(args, folder, experiment):
     validate_search(settings)
     validate_duration(config['simulation']['duration_s'])
     validate_fitness_window(config['simulation'].get('fitness_window_s', DEFAULT_FITNESS_WINDOW_S))
+    firing_interval_steps(config['simulation'].get('max_firing_rate_hz'))
     return config, settings, saved
 
 
@@ -546,6 +590,7 @@ def cli(experiment, folder, bank_factory, runner=None, argv=None):
                                   episodes={name:len(bank) for name,bank in banks.items()},
                                   duration_s=config['simulation']['duration_s'],
                                   fitness_window_s=config['simulation'].get('fitness_window_s', DEFAULT_FITNESS_WINDOW_S),
+                                  max_firing_rate_hz=config['simulation'].get('max_firing_rate_hz'),
                                   initialization='configuration' if saved is None else 'explicit_warm_start',
                                   training=settings), indent=2))
             return

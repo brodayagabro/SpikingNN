@@ -341,9 +341,9 @@
     {
       "index": 31,
       "name": "feedback.Q_aff.0.II_F",
-      "value": -600,
-      "minimum": -2000,
-      "maximum": 2000,
+      "value": -15.0,
+      "minimum": -50,
+      "maximum": 50,
       "scale": "linear",
       "mutable": true,
       "description": "Weight from afferent channel II_F to motoneuron 0; F denotes flexor, E denotes extensor.",
@@ -374,9 +374,9 @@
     {
       "index": 34,
       "name": "feedback.Q_aff.0.II_E",
-      "value": 600,
-      "minimum": -2000,
-      "maximum": 2000,
+      "value": 15.0,
+      "minimum": -50,
+      "maximum": 50,
       "scale": "linear",
       "mutable": true,
       "description": "Weight from afferent channel II_E to motoneuron 0; F denotes flexor, E denotes extensor.",
@@ -407,9 +407,9 @@
     {
       "index": 37,
       "name": "feedback.Q_aff.1.II_F",
-      "value": 600,
-      "minimum": -2000,
-      "maximum": 2000,
+      "value": 15.0,
+      "minimum": -50,
+      "maximum": 50,
       "scale": "linear",
       "mutable": true,
       "description": "Weight from afferent channel II_F to motoneuron 1; F denotes flexor, E denotes extensor.",
@@ -440,9 +440,9 @@
     {
       "index": 40,
       "name": "feedback.Q_aff.1.II_E",
-      "value": -600,
-      "minimum": -2000,
-      "maximum": 2000,
+      "value": -15.0,
+      "minimum": -50,
+      "maximum": 50,
       "scale": "linear",
       "mutable": true,
       "description": "Weight from afferent channel II_E to motoneuron 1; F denotes flexor, E denotes extensor.",
@@ -590,7 +590,8 @@
         1.0
       ]
     },
-    "fitness_window_s": 2.0
+    "fitness_window_s": 2.0,
+    "max_firing_rate_hz": 100.0
   },
   "setpoint": {
     "targets_deg": [

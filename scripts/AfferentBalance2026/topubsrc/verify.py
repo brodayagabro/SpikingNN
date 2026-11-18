@@ -92,7 +92,7 @@ def verify_training(output, workers=1, population=6, generations=4):
     return result
 
 
-def verify(workers=1):
+def verify(workers=1, catalogue=None):
     """Check portable genomes, independent case generation and all frozen metrics."""
     if not isinstance(workers, int) or not 1 <= workers <= numba.config.NUMBA_NUM_THREADS:
         raise ValueError(f'workers must be between 1 and {numba.config.NUMBA_NUM_THREADS}')
@@ -100,7 +100,7 @@ def verify(workers=1):
     numba.set_num_threads(workers)
     rows = []
     try:
-        for item in json.loads((HERE/'published_results.json').read_text()):
+        for item in json.loads(Path(catalogue or HERE/'published_results.json').read_text()):
             path = HERE/item['genome']
             reference = HERE/item['reference_metrics']
             assert file_hash(path) == item['published_file_sha256'], f'Changed example genome: {path}'
@@ -135,6 +135,7 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser(description=__doc__)
     parser.add_argument('--workers', type=int, default=1, help='Numba threads for independent episodes')
     parser.add_argument('--output', type=Path, help='Optional local JSON report; otherwise print only')
+    parser.add_argument('--catalogue', type=Path, help='Genome/reference catalogue; defaults to published_results.json')
     parser.add_argument('--training', action='store_true', help='Repeat seven from-scratch searches (full 10 s banks)')
     parser.add_argument('--directory', type=Path, default=Path('results/repeatability'),
                         help='New directory for the two training suites')
@@ -147,7 +148,7 @@ if __name__ == '__main__':
         parser.error('Choose --compare or --training')
     result = (compare_runs(*args.compare) if args.compare else
               verify_training(args.directory, args.workers, args.population, args.generations)
-              if args.training else verify(args.workers))
+              if args.training else verify(args.workers, args.catalogue))
     if args.output:
         write_json(args.output, result)
     print(json.dumps(result, indent=2))

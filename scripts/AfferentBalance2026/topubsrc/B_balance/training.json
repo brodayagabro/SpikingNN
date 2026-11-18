@@ -1,6 +1,6 @@
 {
   "population": 50,
-  "generations": 200,
+  "generations": 500,
   "seed": 42,
   "mutation_probability": 0.3,
   "sigma_start": 0.2,

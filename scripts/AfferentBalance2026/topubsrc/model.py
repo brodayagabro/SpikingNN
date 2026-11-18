@@ -45,8 +45,36 @@ def validate_fitness_window(window_s):
     return float(window_s)
 
 
+def firing_interval_steps(max_firing_rate_hz=None):
+    """Convert an optional instantaneous rate limit to the fixed-step ISI bound.
+
+    None preserves the historical unconstrained score. A 100 Hz limit means
+    at least 100 integration steps (10 ms) between successive spikes of EACH
+    neuron, including transients. This changes admissibility, not dynamics.
+    """
+    if max_firing_rate_hz is None:
+        return 0
+    if (isinstance(max_firing_rate_hz, (bool, np.bool_))
+            or not isinstance(max_firing_rate_hz, (int, float, np.integer, np.floating))
+            or not np.isfinite(max_firing_rate_hz) or not 0 < max_firing_rate_hz <= 1000/DT_MS):
+        raise ValueError('max_firing_rate_hz must be positive and finite, or null to disable')
+    return int(np.ceil(1000/(DT_MS*max_firing_rate_hz)-1e-12))
+
+
+@njit(cache=True)
+def constrained_score(score, success, shortest_interval, minimum_interval):
+    """Feasible episodes retain the old score; a rate violation scores below -1.
+
+    The negative score orders infeasible candidates by their worst ISI ratio.
+    Bank fitness treats any such episode as a hard feasibility violation.
+    """
+    if minimum_interval and shortest_interval < minimum_interval:
+        return -float(minimum_interval)/shortest_interval, 0.
+    return score, success
+
+
 def simulate(physical, case, mechanics, *, currents=(0., 0.), duration_s=10., stride=1,
-             fitness_window_s=DEFAULT_FITNESS_WINDOW_S):
+             fitness_window_s=DEFAULT_FITNESS_WINDOW_S, max_firing_rate_hz=None):
     """Return episode metrics and a trace including the reset state at t=0.
 
     Parameters
@@ -67,6 +95,10 @@ def simulate(physical, case, mechanics, *, currents=(0., 0.), duration_s=10., st
     fitness_window_s : float
         Final interval for accuracy reward and late RMSE. Strict success also
         requires settling by min(3, duration_s - fitness_window_s) seconds.
+    max_firing_rate_hz : float or None
+        Optional hard ISI constraint on each neuron over the whole episode.
+        Rate-violating trajectories are recorded unchanged, but their score
+        is negative and strict success is zero. None retains historical scores.
     """
     p = GenomeConfig.validate_physical(physical)
     case, mechanics, currents = (np.asarray(x, dtype=float) for x in (case, mechanics, currents))
@@ -81,7 +113,8 @@ def simulate(physical, case, mechanics, *, currents=(0., 0.), duration_s=10., st
     fitness_window_s = validate_fitness_window(fitness_window_s)
     if not isinstance(stride, (int, np.integer)) or stride < 0:
         raise ValueError("Use a nonnegative integer stride")
-    return _integrate(p, case, currents, mechanics, PARAMETERS, duration_s, stride, fitness_window_s)
+    interval = firing_interval_steps(max_firing_rate_hz)
+    return _integrate(p, case, currents, mechanics, PARAMETERS, duration_s, stride, fitness_window_s, interval)
 
 
 def case_grid(angles_deg=None, speeds=None, target_deg=0.):
@@ -250,7 +283,7 @@ def write_state(row, state, time_s):
 
 @njit(cache=True)
 def _integrate(p, case, currents, mechanics, receptors, duration_s, stride,
-               fitness_window_s=DEFAULT_FITNESS_WINDOW_S):
+               fitness_window_s=DEFAULT_FITNESS_WINDOW_S, minimum_interval=0):
     """Integrate fixed-step neural dynamics; all changing physical inputs are explicit."""
     dt_ms = DT_MS
     target_rad = case[0]
@@ -275,11 +308,19 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride,
     late_start = int(round(max(0., duration_s-fitness_window_s)*1000/dt_ms))
     late_steps = max(1, steps-late_start)
     theta = case[0]
+    last_spike = np.full(2, -1, dtype=np.int64)
+    shortest_interval = 2**62
     for step in range(steps):
         # A kick changes velocity before this step; it is external to the controller.
         if step == kick_step:
             state[1] += case[3]
         physical_step(p, mechanics, receptors, state, currents)
+        if minimum_interval:
+            for neuron in range(2):
+                if state[10+neuron] > 0:
+                    if last_spike[neuron] >= 0:
+                        shortest_interval = min(shortest_interval, step-last_spike[neuron])
+                    last_spike[neuron] = step
         theta, omega = state[0]-TARGET, state[1]
         completed = step + 1
         finite = np.isfinite(theta) and np.isfinite(omega)
@@ -288,7 +329,7 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride,
         for i in range(6):
             finite = finite and np.isfinite(state[16+i])
         if not finite:
-            return np.array([-1., completed*dt_ms/1000, angle_limit, angle_limit, 0., 0., duration_s, angle_limit, angle_limit]), trace[:row]
+            return np.array([-1e6 if minimum_interval else -1., completed*dt_ms/1000, angle_limit, angle_limit, 0., 0., duration_s, angle_limit, angle_limit]), trace[:row]
         error = theta-target_rad
         error2 += error*error
         peak = max(peak, abs(error))
@@ -308,6 +349,7 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride,
     survived = completed == steps and abs(theta) <= angle_limit
     success = 1. if survived and last_outside <= min(SETTLE_DEADLINE, duration_s-fitness_window_s) else 0.
     score = .10*completed/steps + .30*reward/steps + .45*late_quality/late_steps + .15*success
+    score, success = constrained_score(score, success, shortest_interval, minimum_interval)
     late_rmse = np.sqrt(late_error2/late_count) if survived and late_count else angle_limit
     return np.array([score, completed*dt_ms/1000, np.sqrt(error2/completed), peak,
                      effort/completed, success, last_outside if survived else duration_s,
@@ -316,7 +358,7 @@ def _integrate(p, case, currents, mechanics, receptors, duration_s, stride,
 
 
 def measure_trace(trace, target_rad=0., duration_s=10., dt_ms=DT_MS, angle_limit=ANGLE_LIMIT,
-                  initial_theta=None, fitness_window_s=DEFAULT_FITNESS_WINDOW_S):
+                  initial_theta=None, fitness_window_s=DEFAULT_FITNESS_WINDOW_S, max_firing_rate_hz=None):
     """Recompute nine episode metrics from a full-resolution post-step trace.
 
     Exclude any prepended reset row. Angles are radians, duration is seconds,
@@ -328,9 +370,10 @@ def measure_trace(trace, target_rad=0., duration_s=10., dt_ms=DT_MS, angle_limit
         raise ValueError("All experiments require dt_ms=0.1")
     validate_duration(duration_s)
     fitness_window_s = validate_fitness_window(fitness_window_s)
+    minimum_interval = firing_interval_steps(max_firing_rate_hz)
     steps = round(duration_s*1000/dt_ms)
     if not len(trace) or not np.isfinite(trace).all():
-        return np.array([-1., len(trace)*dt_ms/1000, angle_limit, angle_limit, 0.,
+        return np.array([-1e6 if minimum_interval else -1., len(trace)*dt_ms/1000, angle_limit, angle_limit, 0.,
                          0., duration_s, angle_limit, angle_limit])
     theta, omega = trace[:, 1], trace[:, 2]
     error = theta-target_rad
@@ -343,6 +386,15 @@ def measure_trace(trace, target_rad=0., duration_s=10., dt_ms=DT_MS, angle_limit
     quality = np.maximum(0., np.exp(-(error/np.deg2rad(15.))**2)-.05*np.minimum(omega**2,4.))
     score = (.10*len(trace)/steps + .30*quality.sum()/steps
              + .45*np.exp(-(late/np.deg2rad(3.))**2).sum()/max(1,steps-late_start) + .15*success)
+    shortest_interval = 2**62
+    if minimum_interval:
+        if not np.allclose(np.diff(trace[:, 0]), DT_MS/1000, atol=1e-10, rtol=0):
+            raise ValueError('Rate-constrained metrics require stride=1')
+        for neuron in range(2):
+            spikes = np.flatnonzero(trace[:, 19+neuron] > 0)
+            if len(spikes) > 1:
+                shortest_interval = min(shortest_interval, int(np.diff(spikes).min()))
+    score, success = constrained_score(score, success, shortest_interval, minimum_interval)
     return np.array([score, len(trace)*dt_ms/1000, np.sqrt(np.mean(error**2)),
                      max(np.max(np.abs(error)), abs(initial_theta-target_rad) if initial_theta is not None else 0.), np.mean(trace[:,3]+trace[:,4]), success,
                      last_outside if survived else duration_s,
@@ -355,7 +407,9 @@ def measure_trace(trace, target_rad=0., duration_s=10., dt_ms=DT_MS, angle_limit
 def fitness(metrics):
     """Reduce a nonempty K-by-9 episode-metric matrix to one robust fitness.
 
-    Only the episode-score column enters the weighted reduction: 0.50 times
+    A score below -1 encodes a rate violation (or a constrained numerical
+    failure): the entire bank is infeasible and its worst score is returned.
+    Otherwise the episode-score column enters the old reduction: 0.50 times
     the mean, 0.30 times the mean of the worst ceil(K/4) trials, and 0.20 times
     the minimum. Return a Python float; reject nonfinite or malformed input.
     """
@@ -365,19 +419,21 @@ def fitness(metrics):
     if not np.isfinite(metrics).all():
         raise ValueError("Episode metrics must be finite")
     scores = np.sort(metrics[:, 0])
+    if scores[0] < -1.:
+        return float(scores[0])
     tail = max(1, int(np.ceil(len(scores) / 4)))
     return float(.5 * scores.mean() + .3 * scores[:tail].mean() + .2 * scores[0])
 
 
 @njit(cache=True, parallel=True)
-def _population_metrics(physical, currents, cases, mechanics, duration, fitness_window_s):
+def _population_metrics(physical, currents, cases, mechanics, duration, fitness_window_s, minimum_interval=0):
     """Parallelize independent individual/episode pairs; preserve their order."""
     result = np.empty((len(physical), len(cases), 9))
     for job in prange(len(physical)*len(cases)):
         individual, episode = job//len(cases), job % len(cases)
         metrics, _ = _integrate(physical[individual], cases[episode],
                                 currents[individual, episode], mechanics,
-                                PARAMETERS, duration, 0, fitness_window_s)
+                                PARAMETERS, duration, 0, fitness_window_s, minimum_interval)
         result[individual, episode] = metrics
     return result
 
@@ -404,7 +460,8 @@ def evaluate_population(genome, population, cases, duration_s):
     physical = np.asarray([p for p, _ in decoded])
     currents = np.asarray([genome.currents(command, cases) for _, command in decoded])
     metrics = _population_metrics(physical, currents, cases, genome.controller.mechanics,
-                                   duration_s, fitness_window_s)
+                                   duration_s, fitness_window_s,
+                                   firing_interval_steps(genome.controller.data['simulation'].get('max_firing_rate_hz')))
     return np.array([fitness(row) for row in metrics]), metrics
 
 
@@ -421,10 +478,14 @@ def replay_genome(genome, unit, *, target_deg=0., angle_deg=-30., speed_rad_s=0.
     fitness_window_s = validate_fitness_window(fitness_window_s)
     metrics, trace = simulate(physical, case, genome.controller.mechanics,
                               currents=currents, duration_s=duration_s, stride=stride,
-                              fitness_window_s=fitness_window_s)
-    return dict(metrics=metrics, trace=trace, case=case, currents=currents,
+                              fitness_window_s=fitness_window_s,
+                              max_firing_rate_hz=genome.controller.data['simulation'].get('max_firing_rate_hz'))
+    result = dict(metrics=metrics, trace=trace, case=case, currents=currents,
                 duration_s=duration_s, fitness_window_s=fitness_window_s,
                 metric_columns=np.array(METRIC_COLUMNS), trace_columns=np.array(TRACE_COLUMNS))
+    if genome.controller.data['simulation'].get('max_firing_rate_hz') is not None:
+        result['max_firing_rate_hz'] = genome.controller.data['simulation']['max_firing_rate_hz']
+    return result
 
 
 def measure_activity(result, bin_s=1.):
@@ -433,7 +494,8 @@ def measure_activity(result, bin_s=1.):
     Requires every 0.1 ms sample. Late statistics are available only for a
     complete episode and a fully observed fitness window. Coactivity means
     at least one spike from EACH neuron in a common bin, not coincident spikes.
-    This diagnostic is never a training reward or a selection criterion.
+    Coactivity remains diagnostic. ISIs also independently audit the optional
+    rate constraint used in training; test diagnostics never select a winner.
     """
     trace = np.asarray(result['trace'])
     if trace.ndim != 2 or trace.shape[1] != len(TRACE_COLUMNS) or len(trace) < 2:
@@ -446,9 +508,20 @@ def measure_activity(result, bin_s=1.):
     spikes = trace[:, 19:21] > 0
     counts = spikes.sum(axis=0)
     observed = float(trace[-1, 0])
-    complete = bool(result['metrics'][0] >= 0 and observed >= duration-1e-9)
+    complete = bool(observed >= duration-1e-9 and result['metrics'][1] >= duration-1e-9)
+    minimum_interval = firing_interval_steps(result.get('max_firing_rate_hz'))
+    minimum_isi_ms, peak_rate_hz, violations = [], [], []
+    for neuron in range(2):
+        intervals = np.diff(np.flatnonzero(spikes[:, neuron]))
+        minimum_isi_ms.append(float(intervals.min()*DT_MS) if len(intervals) else None)
+        peak_rate_hz.append(float(1000/(intervals.min()*DT_MS)) if len(intervals) else None)
+        violations.append(int((intervals < minimum_interval).sum()) if minimum_interval else 0)
     row = dict(observed_duration_s=observed, completed=complete,
                spike_count=counts.tolist(), rate_hz=(counts/observed).tolist(),
+               minimum_isi_ms=minimum_isi_ms, peak_instantaneous_rate_hz=peak_rate_hz,
+               max_firing_rate_hz=result.get('max_firing_rate_hz'),
+               rate_limit_violations=violations,
+               rate_limit_observed_pass=not any(violations) if minimum_interval else None,
                late_window_s=window, bin_s=float(bin_s), late_spike_count=None,
                late_rate_hz=None, late_bin_spike_counts=None, both_active_late=None,
                both_active_every_late_bin=None, coactive_bin_fraction=None,

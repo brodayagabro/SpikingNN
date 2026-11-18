@@ -1,0 +1,401 @@
+{
+  "populations": [
+    20,
+    50
+  ],
+  "seeds": [
+    11,
+    29
+  ],
+  "generations": 150,
+  "configuration": {
+    "format": "cpg-sine-training-v1",
+    "task": {
+      "frequency_hz": 1.0,
+      "amplitude_deg": 10.0,
+      "center_deg": 90.0,
+      "phase_rad": 0.0,
+      "duration_s": 10.0,
+      "score_start_s": 2.0,
+      "velocity_weight": 0.15,
+      "angle_limit_deg": 85.0,
+      "tonic_drive": 1.0
+    },
+    "evaluation": {
+      "long_duration_s": 20.0,
+      "note": "Train on [2,10) s; report the frozen winner on [10,20) s without resetting at t=10. No phase alignment."
+    },
+    "ga": {
+      "population": 30,
+      "generations": 150,
+      "seed": 11,
+      "sigma_start": 0.12,
+      "sigma_end": 0.004,
+      "mutation_probability": 0.25
+    },
+    "sweep": {
+      "populations": [
+        20,
+        50
+      ],
+      "seeds": [
+        11,
+        29
+      ],
+      "generations": 150
+    },
+    "search": {
+      "space": "groups",
+      "description": "22 independent continuous coordinates. Tied values and gains expand to the existing 95-gene physical genome; topology and signs stay fixed.",
+      "groups": [
+        {
+          "name": "RG_a",
+          "targets": [
+            "RG-F.a",
+            "RG-E.a"
+          ],
+          "value": 0.005,
+          "bounds": [
+            0.0005,
+            0.02
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "RG_b",
+          "targets": [
+            "RG-F.b",
+            "RG-E.b"
+          ],
+          "value": 0.2,
+          "bounds": [
+            0.15,
+            0.3
+          ],
+          "scale": "linear",
+          "mode": "absolute"
+        },
+        {
+          "name": "RG_c",
+          "targets": [
+            "RG-F.c",
+            "RG-E.c"
+          ],
+          "value": -50.0,
+          "bounds": [
+            -65,
+            -45
+          ],
+          "scale": "linear",
+          "mode": "absolute"
+        },
+        {
+          "name": "RG_d",
+          "targets": [
+            "RG-F.d",
+            "RG-E.d"
+          ],
+          "value": 2.0,
+          "bounds": [
+            0.1,
+            12
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "drive_RG_F",
+          "targets": [
+            "drive1->RG-F"
+          ],
+          "value": 8.0,
+          "bounds": [
+            2,
+            24
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "drive_RG_E",
+          "targets": [
+            "drive1->RG-E"
+          ],
+          "value": 7.84,
+          "bounds": [
+            1.96,
+            23.52
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "drive_PF",
+          "targets": [
+            "drive1->PF-F",
+            "drive1->PF-E"
+          ],
+          "value": 40.0,
+          "bounds": [
+            10,
+            120
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "drive_In",
+          "targets": [
+            "drive2->In"
+          ],
+          "value": 6.0,
+          "bounds": [
+            1.5,
+            18
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "RG_to_In_gain",
+          "targets": [
+            "RG-F->In-F.weight",
+            "RG-E->In-E.weight"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.25,
+            4
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "RG_to_PF_gain",
+          "targets": [
+            "RG-F->PF-F.weight",
+            "RG-E->PF-E.weight"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.25,
+            4
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "inhibition_gain",
+          "targets": [
+            "In-F->RG-E.weight",
+            "In-F->PF-E.weight",
+            "In-E->RG-F.weight",
+            "In-E->PF-F.weight",
+            "In-E->In.weight",
+            "In->Inab-E.weight"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.25,
+            4
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "tau_exc_ms",
+          "targets": [
+            "RG-F->In-F.tau_ms",
+            "RG-F->PF-F.tau_ms",
+            "RG-E->In-E.tau_ms",
+            "RG-E->PF-E.tau_ms",
+            "PF-F->Mn-F.tau_ms",
+            "PF-E->Inab-E.tau_ms",
+            "PF-E->Mn-E.tau_ms",
+            "Inab-E->Mn-E.tau_ms"
+          ],
+          "value": 20.0,
+          "bounds": [
+            2,
+            80
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "tau_inh_ms",
+          "targets": [
+            "In-F->RG-E.tau_ms",
+            "In-F->PF-E.tau_ms",
+            "In-E->RG-F.tau_ms",
+            "In-E->PF-F.tau_ms",
+            "In-E->In.tau_ms",
+            "In->Inab-E.tau_ms"
+          ],
+          "value": 20.0,
+          "bounds": [
+            2,
+            80
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "motor_gain",
+          "targets": [
+            "PF-F->Mn-F.weight",
+            "PF-E->Mn-E.weight",
+            "Inab-E->Mn-E.weight"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.25,
+            4
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "PF_to_Inab_gain",
+          "targets": [
+            "PF-E->Inab-E.weight"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.25,
+            4
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "length_afferent_gain",
+          "targets": [
+            "Ia-F->RG-F.gain",
+            "Ia-F->In-F.gain",
+            "Ia-F->PF-F.gain",
+            "II-F->RG-F.gain",
+            "II-F->In-F.gain",
+            "II-F->PF-F.gain",
+            "Ia-E->RG-E.gain",
+            "Ia-E->In-E.gain",
+            "Ia-E->PF-E.gain",
+            "Ia-E->Inab-E.gain"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.1,
+            20
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "force_afferent_gain",
+          "targets": [
+            "Ib-E->RG-E.gain",
+            "Ib-E->In-E.gain",
+            "Ib-E->PF-E.gain",
+            "Ib-E->Inab-E.gain"
+          ],
+          "value": 1.0,
+          "bounds": [
+            0.1,
+            20
+          ],
+          "scale": "log",
+          "mode": "multiply"
+        },
+        {
+          "name": "flexor_A",
+          "targets": [
+            "flexor.A"
+          ],
+          "value": 0.37,
+          "bounds": [
+            0.05,
+            0.8
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "extensor_A",
+          "targets": [
+            "extensor.A"
+          ],
+          "value": 0.37,
+          "bounds": [
+            0.05,
+            0.8
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "muscle_w",
+          "targets": [
+            "flexor.w",
+            "extensor.w"
+          ],
+          "value": 0.05,
+          "bounds": [
+            0.005,
+            0.2
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "muscle_tau_c_ms",
+          "targets": [
+            "flexor.tau_c",
+            "extensor.tau_c"
+          ],
+          "value": 50.0,
+          "bounds": [
+            10,
+            150
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        },
+        {
+          "name": "muscle_tau_force_ms",
+          "targets": [
+            "flexor.tau_1",
+            "extensor.tau_1"
+          ],
+          "value": 50.0,
+          "bounds": [
+            10,
+            150
+          ],
+          "scale": "log",
+          "mode": "absolute"
+        }
+      ]
+    },
+    "drive_scan": {
+      "values": [
+        0.0,
+        0.25,
+        0.5,
+        0.65,
+        0.8,
+        1.0,
+        1.2,
+        1.5,
+        1.8,
+        2.0,
+        2.5,
+        3.0
+      ],
+      "duration_s": 20.0,
+      "score_start_s": 5.0,
+      "note": "Multiply Q_app[:,0] only (RG and PF); keep external input to In fixed. Reset identical states for each point. Spectrum is diagnostic, not a fitted command."
+    }
+  },
+  "selection": "Maximum training fitness; continuation metrics never select the winner."
+}

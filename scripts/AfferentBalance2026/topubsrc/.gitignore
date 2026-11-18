@@ -10,6 +10,8 @@ fresh_results/
 verification.json
 training_verification.json
 published_results.json
+rate100_results.json
+grid_rate100_results.json
 appendix_genomes.json
 article_update.json
 reset_*.json

@@ -1,5 +1,7 @@
 # AfferentBalance2026
 
+**Серия B/C от 17 ноября:** веса обратной связи II ограничены ±50, N изменяемый, предел 100 Гц проверяется по всем межспайковым интервалам. Новый sweep до 500 поколений: [инструкции](topubsrc/README.md).
+
 [Русский](README.md)
 
 **Article source:** [topubsrc/README.md](topubsrc/README.md) is the standalone A–C bundle,
