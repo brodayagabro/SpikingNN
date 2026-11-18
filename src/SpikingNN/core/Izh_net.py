@@ -1,3 +1,5 @@
+from typing import Optional
+
 import numpy as np
 from matplotlib import pyplot as plt
 
@@ -797,6 +799,38 @@ class OneDOFLimb_withGR(OneDOFLimb):
 #         self.Limb.step(dt=dt, F_flex=self.F_flex, F_ext=self.F_ext)
 #         self.calc_afferents()
 
+def _validate_additional_afferents(
+    additional_afferents: Optional[np.ndarray],
+) -> Optional[np.ndarray]:
+    """Проверить внешний вход. Validate and copy a finite six-channel input.
+
+    Parameters
+    ----------
+    additional_afferents : np.ndarray or None
+        Signed additive input in [Ia_F, II_F, Ib_F, Ia_E, II_E, Ib_E] order.
+
+    Returns
+    -------
+    np.ndarray or None
+        Independent float vector, or None when the input is omitted.
+
+    Raises
+    ------
+    ValueError
+        If the input is not a finite real vector of shape (6,).
+    """
+    if additional_afferents is None:
+        return None
+    if np.iscomplexobj(additional_afferents):
+        raise ValueError("additional_afferents must contain real values")
+    values = np.asarray(additional_afferents, dtype=float)
+    if values.shape != (6,):
+        raise ValueError("additional_afferents must have shape (6,)")
+    if not np.all(np.isfinite(values)):
+        raise ValueError("additional_afferents must contain finite values")
+    return values.copy()
+
+
 class Afferented_Limb:
     """
     Класс конечности с мышцами и афферентной обратной связью.
@@ -854,12 +888,34 @@ class Afferented_Limb:
         """Угловая скорость конечности."""
         return self.Limb.w
 
-    def calc_afferents(self):
+    def calc_afferents(
+        self, additional_afferents: Optional[np.ndarray] = None,
+    ) -> np.ndarray:
+        """Пересчитать афференты. Recompute intrinsic and additive afferents.
+
+        Parameters
+        ----------
+        additional_afferents : np.ndarray or None, optional
+            Finite vector of shape (6,), in the same units as output.
+            None means no additional input for this call.
+
+        Returns
+        -------
+        np.ndarray
+            Updated self.output, shape (6,). Copy it to retain a snapshot.
+
+        Raises
+        ------
+        ValueError
+            If the additional input has invalid shape or nonfinite values.
+
+        Notes
+        -----
+        Channel order: Ia_Flex, II_Flex, Ib_Flex, Ia_Ext, II_Ext, Ib_Ext.
+        Each call recomputes the intrinsic signals; inputs never accumulate.
+        Signed additions are not clipped, so output may become negative.
         """
-        Расчет афферентных сигналов на основе состояния мышц и кинематики.
-        
-        Calculate afferent signals based on muscle state and kinematics.
-        """
+        additional = _validate_additional_afferents(additional_afferents)
         # Кинематика
         q = self.Limb.q      # Угол
         w = self.Limb.w      # Угловая скорость
@@ -885,6 +941,10 @@ class Afferented_Limb:
         self.output[4] = self.Afferents.II(L_ext, self.Extensor.x)
         self.output[5] = self.Afferents.Ib(self.F_ext)
 
+        if additional is not None:
+            self.output += additional
+        return self.output
+
     def set_init_conditions(self, **kwargs):
         """
         Сброс начальных условий всех компонентов.
@@ -898,17 +958,33 @@ class Afferented_Limb:
         self.F_flex = 0.0
         self.F_ext = 0.0
 
-    def step(self, dt: float = 0.1, uf: float = 0.0, ue: float = 0.0):
+    def step(
+        self, dt: float = 0.1, uf: float = 0.0, ue: float = 0.0,
+        additional_afferents: Optional[np.ndarray] = None,
+    ) -> None:
+        """Выполнить шаг конечности. Advance muscles, mechanics and afferents.
+
+        Parameters
+        ----------
+        dt : float, optional
+            Integration step in milliseconds.
+        uf, ue : float, optional
+            Flexor and extensor motor inputs.
+        additional_afferents : np.ndarray or None, optional
+            Signed finite vector of shape (6,), added after the state update.
+            The input applies only to this call; None removes the addition.
+
+        Returns
+        -------
+        None
+            State and self.output are updated in place.
+
+        Raises
+        ------
+        ValueError
+            If the additional input is invalid; state is then unchanged.
         """
-        Один шаг симуляции конечности.
-        
-        One simulation step for the limb.
-        
-        Args:
-            dt: Шаг по времени (мс).
-            uf: Входной сигнал на сгибатель (активация мотонейрона).
-            ue: Входной сигнал на разгибатель.
-        """
+        additional = _validate_additional_afferents(additional_afferents)
         # 1. Шаг мышц (расчет концентрации кальция и силы)
         self.Flexor.step(dt=dt, u=uf)
         self.Extensor.step(dt=dt, u=ue)
@@ -921,7 +997,7 @@ class Afferented_Limb:
         self.Limb.step(dt=dt, F_flex=self.F_flex, F_ext=self.F_ext)
         
         # 4. Пересчет афферентных сигналов на основе нового состояния
-        self.calc_afferents()
+        self.calc_afferents(additional_afferents=additional)
 
 class Simple_Afferented_Limb:
     def __init__(self, 
@@ -1034,12 +1110,46 @@ class Net_Limb_connect:
         self.net.set_init_conditions(**kwargs)
         self.Limb.set_init_conditions(**kwargs)
 
-    def step(self, dt=0.1, Iapp=0):
+    def step(
+        self, dt: float = 0.1, Iapp=0,
+        additional_afferents: Optional[np.ndarray] = None,
+    ) -> None:
+        """Выполнить шаг системы. Advance the network and connected limb.
+
+        Parameters
+        ----------
+        dt : float, optional
+            Integration step in milliseconds.
+        Iapp : np.ndarray or float, optional
+            External drive in the network's input-channel coordinates.
+        additional_afferents : np.ndarray or None, optional
+            Finite signed vector of shape (6,) for an Afferented_Limb.
+
+        Returns
+        -------
+        None
+            Network and limb state are updated in place.
+
+        Notes
+        -----
+        The existing network-then-limb update order is preserved. Additions
+        enter the limb output at the end of this step and reach the network
+        on the following step (one dt delay). None clears the new output's
+        addition. Var_Limb inherits this behavior.
+        """
+        additional = _validate_additional_afferents(additional_afferents)
         # running network
         self.net.step(dt=dt, Iapp=Iapp, Iaff=self.Limb.output)
         # running limb
-        self.Limb.step(dt=dt, uf=self.net.V_out[0],
-                       ue=self.net.V_out[1])
+        if additional is None:
+            # Сохраняем поддержку старого Simple_Afferented_Limb.
+            self.Limb.step(dt=dt, uf=self.net.V_out[0],
+                           ue=self.net.V_out[1])
+        else:
+            self.Limb.step(
+                dt=dt, uf=self.net.V_out[0], ue=self.net.V_out[1],
+                additional_afferents=additional,
+            )
 
     
 

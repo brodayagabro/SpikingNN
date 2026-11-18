@@ -107,6 +107,47 @@ print(f"Membrane potentials shape: {data['V'].shape}")
 print(f"Recovery variables shape: {data['U'].shape}")
 ```
 
+### Additional afferent input
+
+The low-level limb API accepts a finite NumPy vector of shape `(6,)` in the
+order `[Ia_Flex, II_Flex, Ib_Flex, Ia_Ext, II_Ext, Ib_Ext]`:
+
+```python
+import numpy as np
+from SpikingNN.core.Izh_net import Afferented_Limb
+
+limb = Afferented_Limb()
+limb.step(dt=0.1, uf=0.5, ue=0.3,
+          additional_afferents=np.array([0., 0., 2., 0., 0., 1.]))
+print(limb.output)
+```
+
+`calc_afferents(additional_afferents=...)` recomputes and returns the six-channel
+output without advancing time. Additions are signed, are not clipped, and do
+not accumulate across calls. `None` means no addition for the current call;
+invalid shapes and nonfinite values raise `ValueError` before changing state.
+
+`Net_Limb_connect.step()` and the inherited `Var_Limb.step()` accept the same
+keyword. They retain the network-then-limb update order: the new afferent output
+is available to the network on the next step, after a delay of one `dt`.
+
+The [tactile feedback example](examples/example_additional_afferents.py) compares
+two runs with identical initial conditions. Scheduled sensory pulses act on
+Ib_Flex and Ib_Ext; they do not apply a physical contact force. Its nine-panel
+PNG separates intrinsic and total afferents at the same state and compares
+neural activity and limb motion against an independent no-contact run.
+
+```bash
+python -m pytest test_afferented_limb.py -v
+python examples/example_additional_afferents.py
+# Save the PNG without opening a graphical window:
+python examples/example_additional_afferents.py --no-show
+```
+
+The default output is `additional_afferents_example.png` (20 × 12 inches,
+150 DPI). The example uses the installed package's `SpikingNN.core` imports;
+install it with `python -m pip install -e .` before running.
+
 ### Async API
 
 For non-blocking execution:
