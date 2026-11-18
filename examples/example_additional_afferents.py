@@ -38,6 +38,10 @@ from SpikingNN.core.Var_Limb import Var_Limb
 NAMES = ("CPG_Flex", "MN_Flex", "CPG_Ext", "MN_Ext")
 # Okabe-Ito palette: distinguishable with common color-vision deficiencies.
 COLORS = ("#0072B2", "#E69F00", "#009E73", "#CC79A7")
+AFFERENT_NAMES = ("Ia_Flex", "II_Flex", "Ib_Flex",
+                  "Ia_Ext", "II_Ext", "Ib_Ext")
+AFFERENT_COLORS = ("#0072B2", "#E69F00", "#CC79A7",
+                   "#56B4E9", "#D55E00", "#009E73")
 Trace = Dict[str, np.ndarray]
 
 
@@ -81,6 +85,7 @@ def create_tactile_signal(
     if not np.isfinite(duration) or duration <= 0:
         raise ValueError("duration must be finite and positive")
     signal = np.zeros((len(times), 6))
+    signal[:, 0] = 1+np.sin(times/1000)
     for onset in contacts:
         mask = (times >= onset) & (times < onset + duration)
         signal[mask, 2] = amplitude
@@ -272,7 +277,7 @@ def plot_results(
     """
     base, tactile = results["baseline"], results["tactile"]
     times = tactile["time"]
-    blue, orange, green, purple = COLORS
+    blue, orange = COLORS[:2]
     fig, grid = plt.subplots(3, 3, figsize=(20, 12))
     axes = grid.ravel()
 
@@ -310,33 +315,45 @@ def plot_results(
     for axis, offset, muscle in (
         (axes[3], 0, "Flexor"), (axes[4], 3, "Extensor"),
     ):
-        for index, (kind, color) in enumerate(zip(("Ia", "II", "Ib"), COLORS)):
-            axis.plot(times, tactile["intrinsic"][:, offset + index],
-                      color=color, linewidth=0.8, label=kind + "_" + muscle)
-        axis.set(title=muscle + " intrinsic afferents (tactile run)",
+        for channel in range(offset, offset + 3):
+            name, color = AFFERENT_NAMES[channel], AFFERENT_COLORS[channel]
+            axis.plot(times, tactile["intrinsic"][:, channel],
+                      color=color, linestyle="--", linewidth=0.8,
+                      label=name + " intrinsic")
+            axis.plot(times, tactile["afferents"][:, channel],
+                      color=color, linewidth=0.8, label=name + " total")
+        axis.set(title=muscle + " afferents: intrinsic vs total",
                  ylabel="Afferent activity (a.u.)")
 
-    for index, name, color in ((2, "Ib_Flex", purple), (5, "Ib_Ext", green)):
-        axes[5].plot(times, tactile["additional"][:, index],
-                     color=color, linewidth=0.8, label=name)
+    for index, (name, color) in enumerate(
+        zip(AFFERENT_NAMES, AFFERENT_COLORS),
+    ):
+        values = tactile["additional"][:, index]
+        low, high = values.min(), values.max()
+        levels = f"{low:g}" if low == high else f"{low:g} / {high:+g}"
+        style = "-" if np.any(values) else ":"
+        axes[5].plot(times, values, color=color, linestyle=style,
+                     linewidth=0.9, label=f"{name}: {levels}")
         difference = (
             tactile["afferents"][:, index] - tactile["intrinsic"][:, index]
         )
-        axes[7].plot(times, difference, color=color, linewidth=0.8,
+        axes[7].plot(times, difference, color=color, linestyle=style,
+                     linewidth=0.9,
                      label="Delta " + name)
-    axes[5].set(title="Scheduled tactile contact pulses",
+    axes[5].set(title="Additional afferents",
                 ylabel="Additional input (a.u.)")
-    axes[7].set(title="Added component at the same state",
+    axes[5].margins(y=0.25)
+    axes[7].set(title="Change in afferents: total - intrinsic",
                 ylabel="Total - intrinsic (a.u.)")
+    axes[7].margins(y=0.25)
 
-    axes[6].plot(times, base["afferents"][:, 2], color="0.4",
-                 linestyle="--", linewidth=0.8,
-                 label="Independent no-contact run")
-    axes[6].plot(times, tactile["intrinsic"][:, 2], color=blue,
-                 linewidth=0.8, label="Intrinsic, tactile run")
-    axes[6].plot(times, tactile["afferents"][:, 2], color=orange,
-                 linewidth=0.8, label="Total, tactile run")
-    axes[6].set(title="Ib_Flex: intrinsic and total feedback",
+    for channel in (2, 5):
+        name, color = AFFERENT_NAMES[channel], AFFERENT_COLORS[channel]
+        axes[6].plot(times, tactile["intrinsic"][:, channel], color=color,
+                     linestyle="--", linewidth=0.8, label=name + " intrinsic")
+        axes[6].plot(times, tactile["afferents"][:, channel], color=color,
+                     linewidth=0.9, label=name + " total")
+    axes[6].set(title="Ib signals: total = intrinsic + additional",
                 ylabel="Afferent activity (a.u.)")
 
     axes[8].plot(base["q"], base["w"], color="0.5", linewidth=0.8,
@@ -353,7 +370,7 @@ def plot_results(
         if index < 8:
             axis.set_xlabel("Time (ms)")
         if index not in (0, 2):
-            axis.legend(fontsize=8)
+            axis.legend(fontsize=8, ncol=2 if index in (3, 4, 5, 7) else 1)
     fig.suptitle("Tactile feedback: matched states, one-step feedback delay")
     fig.tight_layout()
     fig.savefig(output, dpi=150, format="png")
